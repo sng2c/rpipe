@@ -1,3 +1,0 @@
-ME:HELLO WORLD
-
-END
