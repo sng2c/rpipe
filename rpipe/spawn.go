@@ -31,10 +31,10 @@ func SendChannel(wr io.Writer) chan<- string {
 			select {
 			case data := <-sendch:
 				_, err := writer.WriteString(data+"\n")
-				err = writer.Flush()
 				if err != nil {
 					log.Print(err)
 				}
+				err = writer.Flush()
 				if err != nil {
 					log.Print(err)
 				}
