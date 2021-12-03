@@ -4,8 +4,6 @@ go 1.17
 
 require (
 	github.com/go-redis/redis/v8 v8.11.4
-	github.com/hahwul/gee v1.1.0
-	github.com/logrusorgru/aurora v2.0.3+incompatible
 )
 
 require (

@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"github.com/go-redis/redis/v8"
-	"github.com/logrusorgru/aurora"
 	"log"
 	"net/url"
 	"os"
@@ -20,11 +19,8 @@ import (
 
 var ctx = context.Background()
 
-func escape(s string) string {
+func escapeNewLine(s string) string {
 	return strings.Replace(s, "\n", "\\n", -1)
-}
-func parseMessage(s string) ([]string, error) {
-	return strings.SplitAfter(s, ":"), nil
 }
 
 type Message struct {
@@ -33,15 +29,10 @@ type Message struct {
 	Payload string
 }
 
-var opts2 struct{}
-var opts struct {
-	Name string `long:"name" short:"n" required:"false" name:"Hostname"`
-}
-
 func main() {
 	flag.Usage = func() {
-		_, _ = fmt.Fprintf(flag.CommandLine.Output(), aurora.White("Usage: %s [-redis redis://...] [-name HOSTNAME] COMMAND ...\n").String(), os.Args[0])
-		_, _ = fmt.Fprintf(flag.CommandLine.Output(), aurora.White("Flags:\n").String())
+		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [-redis redis://...] [-name HOSTNAME] COMMAND ...\n", os.Args[0])
+		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Flags:\n")
 		flag.PrintDefaults()
 	}
 
@@ -124,11 +115,11 @@ MAIN_LOOP:
 			}
 			chn := matched[1]
 			payload := *myname + ":" + matched[2]
-			log.Printf("--> [%s] %s\n", chn, escape(payload))
+			log.Printf("[--> %s] %s\n", chn, escapeNewLine(payload))
 			rdb.Publish(ctx, chn, payload)
 		case msg := <-subch:
 			// FROM:PAYLOAD
-			log.Printf("<-- [%s] %s\n", msg.Channel, escape(msg.Payload))
+			log.Printf("[<-- %s] %s\n", msg.Channel, escapeNewLine(msg.Payload))
 			if msgpat.MatchString(msg.Payload) == false {
 				log.Printf("Invalid format '%s'", msg.Payload)
 				continue
