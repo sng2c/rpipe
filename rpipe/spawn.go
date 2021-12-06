@@ -8,7 +8,7 @@ import (
 	"os/exec"
 )
 
-func RecvChannel(rd io.Reader, size int) <-chan string{
+func RecvChannel(rd io.Reader) <-chan string {
 	recvch := make(chan string)
 	go func() {
 		defer close(recvch)
@@ -30,7 +30,7 @@ func SendChannel(wr io.Writer) chan<- string {
 		for {
 			select {
 			case data := <-sendch:
-				_, err := writer.WriteString(data+"\n")
+				_, err := writer.WriteString(data + "\n")
 				if err != nil {
 					log.Print(err)
 				}
@@ -46,8 +46,9 @@ func SendChannel(wr io.Writer) chan<- string {
 
 type SpawnedInfo struct {
 	Cmd           *exec.Cmd
-	Send          chan<- string
-	Recv          <-chan string
+	In            chan<- string
+	Out           <-chan string
+	Err           <-chan string
 	CancelContext context.Context
 }
 
@@ -58,7 +59,15 @@ func Spawn(ctx context.Context, cmd *exec.Cmd) (SpawnedInfo, error) {
 	if err != nil {
 		return SpawnedInfo{}, err
 	}
-	outChan := RecvChannel(outPipe, 2048)
+	outChan := RecvChannel(outPipe)
+
+	// STDERR
+	errPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return SpawnedInfo{}, err
+	}
+	errChan := RecvChannel(errPipe)
+
 	// STDIN
 	inPipe, err := cmd.StdinPipe()
 	if err != nil {
@@ -85,5 +94,5 @@ func Spawn(ctx context.Context, cmd *exec.Cmd) (SpawnedInfo, error) {
 		_ = cmd.Process.Kill()
 	}()
 
-	return SpawnedInfo{cmd, inChan, outChan, cancelCtx}, nil
+	return SpawnedInfo{cmd, inChan, outChan, errChan, cancelCtx}, nil
 }

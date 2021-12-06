@@ -1,4 +1,5 @@
-$host = $ARGV[0];
+$chn = $ARGV[0];
 $|++;
-print "$host:HELLO WORLD\n";
+print "$chn:HELLO_WORLD\n";
+print STDERR "hello world!!\n";
 <STDIN>;

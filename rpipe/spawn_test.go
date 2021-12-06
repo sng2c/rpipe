@@ -13,7 +13,7 @@ func _spawn_read(cmd *exec.Cmd) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	result := <-info.Recv
+	result := <-info.Out
 	return result, nil
 }
 func _spawn_write(data string) (string, error) {
@@ -27,10 +27,10 @@ func _spawn_write(data string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	info.Send <- data
+	info.In <- data
 	log.Println("sent",data)
 
-	result := <-rinfo.Recv
+	result := <-rinfo.Out
 	log.Println("recv",result)
 	return result, nil
 }
