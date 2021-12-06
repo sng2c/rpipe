@@ -93,6 +93,10 @@ func main() {
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	cmd := exec.Command(command[0], command[1:]...) //Just for testing, replace with your subProcess
+	// pass Env
+	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, "RPIPE_PROTOCOL="+protocol)
+
 	spawn, err := rpipe.Spawn(ctx, cmd)
 	if err != nil {
 		log.Fatal(err)
