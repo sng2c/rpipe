@@ -15,6 +15,8 @@ Usage: rpipe [-redis redis://...] [-name HOSTNAME] COMMAND ...
 Flags:
   -name string
         Hostname (default "kakaoui-MacBookPro.local")
+  -protocol string
+        Protocols. 0:Non-secure (default "0")
   -redis string
         Redis URL (default "redis://localhost:6379/0")
 ```
