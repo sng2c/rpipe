@@ -48,7 +48,9 @@ func main() {
 	var myChnName string
 	var targetChnName string
 	var verbose bool
+	var strip bool
 	flag.BoolVar(&verbose, "verbose", false, "Verbose")
+	flag.BoolVar(&strip, "strip", false, "Strip target in message")
 	flag.StringVar(&protocol, "protocol", "0", "Protocols. 0:Non-secure")
 	flag.StringVar(&redisURL, "redis", "redis://localhost:6379/0", "Redis URL")
 	flag.StringVar(&myChnName, "name", systemHostname, "My channel name")
@@ -158,6 +160,7 @@ func main() {
 
 	log.Printf("  redis     : %s\n", redisURL)
 	log.Printf("  verbose   : %t\n", verbose)
+	log.Printf("  strip     : %t\n", strip)
 	if spawnInfo != nil {
 		log.Printf("  Command   : %v\n", command)
 	} else {
@@ -225,11 +228,22 @@ MainLoop:
 			//log.Printf("SUB-%s %d\n", msg.Channel, len(data))
 			switch data_protocol {
 			case "0":
-				if ver0MsgPat.MatchString(body) == false {
-					log.Warningf("Invalid format '%s' (sub ver0)", body)
-					continue MainLoop
+				if strip {
+					matched = ver0MsgPat.FindStringSubmatch(body)
+					if len(matched) != 3 {
+						log.Warningf("No target channel in '%s' (pub ver0)", data)
+					} else {
+						body = matched[2]
+					}
+					writeCh <- body
+				}else{
+					if ver0MsgPat.MatchString(body) == false {
+						log.Warningf("Invalid format '%s' (sub ver0)", body)
+					}
+					writeCh <- body
 				}
-				writeCh <- body
+
+
 			default:
 				log.Warningf("Not supported protocol '%s' (sub)", data_protocol)
 				continue MainLoop
