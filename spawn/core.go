@@ -1,14 +1,14 @@
-package rpipe
+package spawn
 
 import (
 	"bufio"
 	"context"
+	log "github.com/sirupsen/logrus"
 	"io"
-	"log"
 	"os/exec"
 )
 
-func RecvChannel(rd io.Reader) <-chan string {
+func ReaderChannel(rd io.Reader) <-chan string {
 	recvch := make(chan string)
 	go func() {
 		defer close(recvch)
@@ -17,12 +17,11 @@ func RecvChannel(rd io.Reader) <-chan string {
 			var line = scanner.Text()
 			recvch <- line
 		}
-		log.Print("EOF")
 	}()
 	return recvch
 }
 
-func SendChannel(wr io.Writer) chan<- string {
+func WriterChannel(wr io.Writer) chan<- string {
 	sendch := make(chan string)
 	go func() {
 		defer close(sendch)
@@ -32,11 +31,11 @@ func SendChannel(wr io.Writer) chan<- string {
 			case data := <-sendch:
 				_, err := writer.WriteString(data + "\n")
 				if err != nil {
-					log.Print(err)
+					log.Debug(err)
 				}
 				err = writer.Flush()
 				if err != nil {
-					log.Print(err)
+					log.Debug(err)
 				}
 			}
 		}
@@ -52,47 +51,47 @@ type SpawnedInfo struct {
 	CancelContext context.Context
 }
 
-func Spawn(ctx context.Context, cmd *exec.Cmd) (SpawnedInfo, error) {
+func Spawn(ctx context.Context, cmd *exec.Cmd) (*SpawnedInfo, error) {
 
 	// STDOUT
 	outPipe, err := cmd.StdoutPipe()
 	if err != nil {
-		return SpawnedInfo{}, err
+		return nil, err
 	}
-	outChan := RecvChannel(outPipe)
+	outChan := ReaderChannel(outPipe)
 
 	// STDERR
 	errPipe, err := cmd.StderrPipe()
 	if err != nil {
-		return SpawnedInfo{}, err
+		return nil, err
 	}
-	errChan := RecvChannel(errPipe)
+	errChan := ReaderChannel(errPipe)
 
 	// STDIN
 	inPipe, err := cmd.StdinPipe()
 	if err != nil {
-		return SpawnedInfo{}, err
+		return nil, err
 	}
-	inChan := SendChannel(inPipe)
+	inChan := WriterChannel(inPipe)
 
 	cancelCtx, cancel := context.WithCancel(ctx)
 	go func() {
 		err := cmd.Run()
 		if err != nil {
-			log.Print(err)
+			log.Debugln(err)
 		}
 		go func() {
 			defer cancel()
 			_ = cmd.Wait()
 		}()
-		log.Println("Command exited.")
+		log.Debugln("Command exited.")
 	}()
 
 	go func() {
 		<-ctx.Done()
-		log.Print("Cancel context and KILL")
+		log.Debugln("Cancel context and KILL")
 		_ = cmd.Process.Kill()
 	}()
 
-	return SpawnedInfo{cmd, inChan, outChan, errChan, cancelCtx}, nil
+	return &SpawnedInfo{cmd, inChan, outChan, errChan, cancelCtx}, nil
 }

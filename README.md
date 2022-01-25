@@ -10,8 +10,8 @@
 ## Usage
 
 ```bash
-$ rpipe -h
-Usage: rpipe [-redis redis://...] [-name HOSTNAME] COMMAND ...
+$ spawn -h
+Usage: spawn [-redis redis://...] [-name HOSTNAME] COMMAND ...
 Flags:
   -name string
         Hostname (default "kakaoui-MacBookPro.local")
@@ -32,7 +32,7 @@ print "$chn:HELLO WORLD\n";
 
 ### Self consuming
 ```bash
-$ go run rpipe.go -name ME perl test_worker.pl ME
+$ go run spawn.go -name ME perl test_worker.pl ME
 2021/12/03 15:47:42 --> [ME] 0:ME:HELLO WORLD
 2021/12/03 15:47:42 <-- [ME] 0:ME:HELLO WORLD
 2021/12/03 15:47:42 EOF
@@ -42,7 +42,7 @@ $ go run rpipe.go -name ME perl test_worker.pl ME
 
 ### Peer to Peer
 ```bash
-$ go run rpipe.go -name ME perl test_worker.pl YOU
+$ go run spawn.go -name ME perl test_worker.pl YOU
 2021/12/03 15:53:52 [--> YOU] 0:ME:HELLO WORLD
 2021/12/03 15:54:05 [<-- ME] 0:YOU:HELLO WORLD
 2021/12/03 15:54:05 EOF
@@ -51,7 +51,7 @@ $ go run rpipe.go -name ME perl test_worker.pl YOU
 $
 ```
 ```bash
-$ go run rpipe.go -name YOU perl test_worker.pl ME
+$ go run spawn.go -name YOU perl test_worker.pl ME
 2021/12/03 15:54:05 [--> ME] 0:YOU:HELLO WORLD
 ```
 
