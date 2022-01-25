@@ -76,7 +76,7 @@ func Spawn(ctx context.Context, cmd *exec.Cmd) (*SpawnedInfo, error) {
 
 	cancelCtx, cancel := context.WithCancel(ctx)
 	go func() {
-		err := cmd.Run()
+		err = cmd.Run()
 		if err != nil {
 			log.Debugln(err)
 		}

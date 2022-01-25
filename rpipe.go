@@ -72,7 +72,7 @@ func main() {
 	var subCh <-chan *redis.Message
 	var rdb *redis.Client
 
-	// Redis connection
+	// check redis connection
 	redisAddr, err := url.Parse(redisURL)
 	if err != nil {
 		log.Fatalf("Invalid REDIS url")
