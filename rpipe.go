@@ -42,6 +42,7 @@ func main() {
 	if err != nil {
 		log.Fatalln("Can not get Hostname", err)
 	}
+
 	var protocol string
 	var redisURL string
 	var myChnName string
@@ -53,6 +54,7 @@ func main() {
 	flag.StringVar(&myChnName, "name", systemHostname, "My channel name")
 	flag.StringVar(&targetChnName, "target", targetChnName, "Target channel name")
 	flag.Parse()
+
 	if verbose {
 		log.SetLevel(log.DebugLevel)
 	} else {
@@ -103,8 +105,7 @@ func main() {
 	rdb = redis.NewClient(&redisOptions)
 	_, err = rdb.Ping(ctx).Result()
 	if err != nil {
-		log.Fatalf("Redis Fail", err)
-		rdb = nil
+		log.Fatalf("Redis Ping Fail", err)
 	} else {
 		pubsub := rdb.Subscribe(ctx, myChnName)
 		defer pubsub.Close()
