@@ -50,7 +50,7 @@ func main() {
 	var verbose bool
 	var strip bool
 	flag.BoolVar(&verbose, "verbose", false, "Verbose")
-	flag.BoolVar(&strip, "strip", false, "Strip target in message")
+	flag.BoolVar(&strip, "strip", false, "Strip target name in received message")
 	flag.StringVar(&protocol, "protocol", "0", "Protocols. 0:Non-secure")
 	flag.StringVar(&redisURL, "redis", "redis://localhost:6379/0", "Redis URL")
 	flag.StringVar(&myChnName, "name", systemHostname, "My channel name")
