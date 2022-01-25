@@ -149,7 +149,12 @@ func main() {
 	log.Printf("Rpipe V%s\n", VERSION)
 	log.Printf("  protocol  : %s\n", protocol)
 	log.Printf("  name      : %s\n", myChnName)
-	log.Printf("  target    : %s\n", targetChnName)
+	if targetChnName != "" {
+		log.Printf("  target    : %s\n", targetChnName)
+	} else {
+		log.Printf("  target    : <None>\n")
+	}
+
 	log.Printf("  redis     : %s\n", redisURL)
 	log.Printf("  verbose   : %t\n", verbose)
 	if spawnInfo != nil {
@@ -169,7 +174,7 @@ MainLoop:
 				continue
 			}
 
-			log.Infof("[STDERR] %s", data)
+			log.Infof("[ERR] %s", data)
 
 		case data, ok := <-readCh: // CHILD -> REDIS
 			log.Debugln("case <-readCh")
@@ -181,21 +186,21 @@ MainLoop:
 				var targetChn string
 				var payload string
 
-				// "TARGET:PAYLOAD" -> "0:SOURCE:PAYLOAD" -> [TARGET]
-				matched := ver0MsgPat.FindStringSubmatch(data)
-				if len(matched) != 3 {
-					if targetChnName == "" {
-						log.Printf("No target info in '%s' (pub ver0)", data)
+				if targetChnName != "" {
+					targetChn = targetChnName
+					payload = protocol + ":" + myChnName + ":" + data
+				} else {
+					// "TARGET:PAYLOAD" -> "0:SOURCE:PAYLOAD" -> [TARGET]
+					matched := ver0MsgPat.FindStringSubmatch(data)
+					if len(matched) != 3 {
+						log.Warningf("No target channel in '%s' (pub ver0)", data)
 						continue MainLoop
 					} else {
-						targetChn = targetChnName
-						payload = protocol + ":" + myChnName + ":" + data
+						targetChn = matched[1]
+						payload = protocol + ":" + myChnName + ":" + matched[2]
 					}
-				} else {
-					targetChn = matched[1]
-					payload = protocol + ":" + myChnName + ":" + matched[2]
 				}
-				log.Debugf("PUB-%s %s", targetChn, escapeNewLine(payload))
+				log.Debugf("[PUB-%s] %s", targetChn, escapeNewLine(payload))
 				//log.Infof("PUB-%s %d", targetChn, len(payload))
 				rdb.Publish(ctx, targetChn, payload)
 			}
@@ -210,22 +215,22 @@ MainLoop:
 			data := msg.Payload
 			matched := verPat.FindStringSubmatch(data)
 			if len(matched) != 3 {
-				log.Printf("Invalid format '%s' (sub)", data)
+				log.Warningf("Invalid format '%s' (sub)", data)
 				continue MainLoop
 			}
 			data_protocol := matched[1] // for extending protocols
 			body := matched[2]
-			log.Debugf("SUB-%s %s\n", msg.Channel, escapeNewLine(data))
+			log.Debugf("[SUB-%s] %s\n", msg.Channel, escapeNewLine(data))
 			//log.Printf("SUB-%s %d\n", msg.Channel, len(data))
 			switch data_protocol {
 			case "0":
 				if ver0MsgPat.MatchString(body) == false {
-					log.Printf("Invalid format '%s' (sub ver0)", body)
+					log.Warningf("Invalid format '%s' (sub ver0)", body)
 					continue MainLoop
 				}
 				writeCh <- body
 			default:
-				log.Printf("Not supported protocol '%s' (sub)", data_protocol)
+				log.Warningf("Not supported protocol '%s' (sub)", data_protocol)
 				continue MainLoop
 			}
 		}
