@@ -193,7 +193,7 @@ MainLoop:
 				payload = protocol + ":" + myChnName + ":" + matched[2]
 			}
 			log.Debugf("PUB-%s %s", targetChn, escapeNewLine(payload))
-			log.Infof("PUB-%s %d", targetChn, len(payload))
+			//log.Infof("PUB-%s %d", targetChn, len(payload))
 			rdb.Publish(ctx, targetChn, payload)
 
 		case <-sigs:
@@ -212,7 +212,7 @@ MainLoop:
 			data_protocol := matched[1] // for extending protocols
 			body := matched[2]
 			log.Debugf("SUB-%s %s\n", msg.Channel, escapeNewLine(data))
-			log.Printf("SUB-%s %d\n", msg.Channel, len(data))
+			//log.Printf("SUB-%s %d\n", msg.Channel, len(data))
 			switch data_protocol {
 			case "0":
 				if ver0MsgPat.MatchString(body) == false {
