@@ -57,7 +57,8 @@ DEBU[2022-01-25T15:42:52+09:00] Bye~
 
 ### Peer to Peer
 ```bash
-$ Rpipe V0.1
+$ go run rpipe.go -verbose -name ME perl test_worker.pl YOU
+Rpipe V0.1
   protocol  : 0
   name      : ME
   target    : 
