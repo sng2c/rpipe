@@ -33,7 +33,7 @@ var ver0MsgPat = regexp.MustCompile(`^([a-zA-Z0-9\\._-]+):(.+)$`)
 
 func main() {
 	flag.Usage = func() {
-		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [-redis redis://...] [-name HOSTNAME] COMMAND ...\n", os.Args[0])
+		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [flags] COMMAND...\n", os.Args[0])
 		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Flags:\n")
 		flag.PrintDefaults()
 	}
@@ -164,37 +164,41 @@ MainLoop:
 		select {
 		case data, ok := <-readErrorCh: // CHILD -> REDIS
 			log.Debugln("case <-readErrorCh")
-			if ok == true {
-				log.Printf("[STDERR] %s", data)
+			if ok == false {
+				log.Debugf("readErrorCh is closed\n")
+				continue
 			}
-			continue
+
+			log.Infof("[STDERR] %s", data)
+
 		case data, ok := <-readCh: // CHILD -> REDIS
 			log.Debugln("case <-readCh")
 			if ok == false {
-				//log.Printf("Out chan is closed")
+				log.Debugf("readCh is closed\n")
 				break MainLoop
-			}
-
-			var targetChn string
-			var payload string
-
-			// "TARGET:PAYLOAD" -> "0:SOURCE:PAYLOAD" -> [TARGET]
-			matched := ver0MsgPat.FindStringSubmatch(data)
-			if len(matched) != 3 {
-				if targetChnName == "" {
-					log.Printf("No target info in '%s' (pub ver0)", data)
-					continue MainLoop
-				} else {
-					targetChn = targetChnName
-					payload = protocol + ":" + myChnName + ":" + data
-				}
+				//continue
 			} else {
-				targetChn = matched[1]
-				payload = protocol + ":" + myChnName + ":" + matched[2]
+				var targetChn string
+				var payload string
+
+				// "TARGET:PAYLOAD" -> "0:SOURCE:PAYLOAD" -> [TARGET]
+				matched := ver0MsgPat.FindStringSubmatch(data)
+				if len(matched) != 3 {
+					if targetChnName == "" {
+						log.Printf("No target info in '%s' (pub ver0)", data)
+						continue MainLoop
+					} else {
+						targetChn = targetChnName
+						payload = protocol + ":" + myChnName + ":" + data
+					}
+				} else {
+					targetChn = matched[1]
+					payload = protocol + ":" + myChnName + ":" + matched[2]
+				}
+				log.Debugf("PUB-%s %s", targetChn, escapeNewLine(payload))
+				//log.Infof("PUB-%s %d", targetChn, len(payload))
+				rdb.Publish(ctx, targetChn, payload)
 			}
-			log.Debugf("PUB-%s %s", targetChn, escapeNewLine(payload))
-			//log.Infof("PUB-%s %d", targetChn, len(payload))
-			rdb.Publish(ctx, targetChn, payload)
 
 		case <-sigs:
 			log.Debugln("case <-sigs")
