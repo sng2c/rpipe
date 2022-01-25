@@ -123,6 +123,44 @@ DEBU[2022-01-25T15:55:34+09:00] readCh is closed
 DEBU[2022-01-25T15:55:34+09:00] Bye~
 ```
 
+### CHAT
+```bash
+$ go run rpipe.go -verbose -name USER1                     
+Rpipe V0.1
+  protocol  : 0
+  name      : USER1
+  target    : 
+  redis     : redis://localhost:6379/0
+  verbose   : true
+  Command   : <PIPE MODE>
+(waiting..)
+DEBU[2022-01-25T16:02:20+09:00] case <-subsh                                 
+DEBU[2022-01-25T16:02:20+09:00] SUB-USER1 0:USER2: Hello, user1?             
+USER2: Hello, user1?
+(type..)USER2: Good morning?
+DEBU[2022-01-25T16:02:49+09:00] case <-readCh                                
+DEBU[2022-01-25T16:02:49+09:00] PUB-USER2 0:USER1: Good morning?
+(waiting..)
+```
+
+```bash
+$ go run rpipe.go -verbose -name USER2
+Rpipe V0.1
+  protocol  : 0
+  name      : USER2
+  target    : 
+  redis     : redis://localhost:6379/0
+  verbose   : true
+  Command   : <PIPE MODE> 
+(type..)USER1: Hello, user1?
+DEBU[2022-01-25T16:02:20+09:00] case <-readCh                                
+DEBU[2022-01-25T16:02:20+09:00] PUB-USER1 0:USER2: Hello, user1?
+(waiting..)             
+DEBU[2022-01-25T16:02:49+09:00] case <-subsh                                 
+DEBU[2022-01-25T16:02:49+09:00] SUB-USER2 0:USER1: Good morning?             
+USER1: Good morning?
+(waiting..)
+```
 ## TO-DO
 * Secure (PKI)
 * ~~STDIN/STDOUT processing~~
