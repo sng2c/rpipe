@@ -30,7 +30,7 @@ const VERSION = "0.1"
 
 func main() {
 	flag.Usage = func() {
-		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [flags] COMMAND...\n", os.Args[0])
+		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [flags] [COMMAND...]\n", os.Args[0])
 		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Flags:\n")
 		flag.PrintDefaults()
 	}
@@ -43,7 +43,7 @@ func main() {
 
 	flag.BoolVar(&verbose, "verbose", false, "Verbose")
 	flag.StringVar(&redisURL, "redis", "redis://localhost:6379/0", "Redis URL")
-	flag.StringVar(&myChnName, "name", "", "My channel")
+	flag.StringVar(&myChnName, "name", "", "My channel. Required")
 	flag.StringVar(&targetChnName, "target", targetChnName, "Target channel. No need to specify target channel in sending message.")
 	flag.BoolVar(&secure, "secure", false, "Secure messages.")
 	flag.Parse()
