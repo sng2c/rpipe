@@ -28,7 +28,6 @@ type Cryptor struct {
 }
 type SymKey struct {
 	Key      []byte
-	ExpireAt time.Time
 }
 
 func NewCryptor(rdb *redis.Client) *Cryptor {
@@ -73,29 +72,31 @@ func (c *Cryptor) FetchRemotePubkey(ctx context.Context, msg *Msg) (*rsa.PublicK
 }
 
 func (c *Cryptor) FetchRemoteSymkey(ctx context.Context, msg *Msg) (*SymKey, error) {
-	now := time.Now()
+	symkeyFullname := fmt.Sprintf("RPIPE:SYMKEYS:%s", msg.SymkeyName())
+	if msg.Refresh {
+		log.Debugf("Refresh symKey for %s\n", symkeyFullname)
+		// 새로 가져온다.
+		delete(c.cache, msg.SymkeyName())
+		// symm 을 다시 말아준다.
+		_, err := c.RegisterNewSymkeyForRemote(ctx, &Msg{From: msg.To, To:msg.From})
+		if err != nil {
+			return nil, err
+		}
+	}
 	symKey, ok := c.cache[msg.SymkeyName()]
-	if !ok || msg.Refresh {
-		symkeyFullname := fmt.Sprintf("RPIPE:SYMKEYS:%s", msg.SymkeyName())
+	if !ok {
+
 		log.Debugf("Update Symkey %s\n", symkeyFullname)
 		pkiCryptedSymkey, err := c.rdb.Get(ctx, symkeyFullname).Result()
 		if err != nil {
 			return nil, ExpireError
 		}
-		ttl, err := c.rdb.TTL(ctx, symkeyFullname).Result()
-		if err != nil {
-			return nil, err
-		}
 		_key, err := DecryptPKI(c.PrivateKey, pkiCryptedSymkey)
 		if err != nil {
 			return nil, err
 		}
-		symKey = &SymKey{Key: _key, ExpireAt: now.Add(ttl)}
+		symKey = &SymKey{Key: _key}
 		c.cache[msg.SymkeyName()] = symKey
-	} else {
-		if symKey.ExpireAt.Before(now) {
-			return nil, ExpireError
-		}
 	}
 	return symKey, nil
 }
@@ -120,18 +121,12 @@ func (c *Cryptor) RegisterNewSymkeyForRemote(ctx context.Context, msg *Msg) (*Sy
 	if err != nil {
 		return nil, err
 	}
-	expireAt := time.Now().Add(ExpireDuration)
 	_, err = c.rdb.Set(ctx, symkeyFullname, _symkeyStr, 0).Result()
-	if err != nil {
-		return nil, err
-	}
-	_, err = c.rdb.ExpireAt(ctx, symkeyFullname, expireAt).Result()
 	if err != nil {
 		return nil, err
 	}
 	symkey := SymKey{
 		Key:      newKey,
-		ExpireAt: expireAt,
 	}
 	c.cache[msg.SymkeyName()] = &symkey
 	return &symkey, nil
