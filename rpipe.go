@@ -55,6 +55,7 @@ func main() {
 	}
 
 	if myChnName == "" {
+		flag.Usage()
 		log.Fatalln("-name flag is required")
 	}
 
