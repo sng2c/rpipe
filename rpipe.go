@@ -9,7 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"regexp"
+	"rpipe/messages"
 	"rpipe/spawn"
 	"strconv"
 	"strings"
@@ -28,9 +28,6 @@ func escapeNewLine(s string) string {
 
 const VERSION = "0.1"
 
-var verPat = regexp.MustCompile(`^([0-9]+):(.+)$`)
-var ver0MsgPat = regexp.MustCompile(`^([a-zA-Z0-9\\._-]+):(.+)$`)
-
 func main() {
 	flag.Usage = func() {
 		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [flags] COMMAND...\n", os.Args[0])
@@ -43,18 +40,17 @@ func main() {
 		log.Fatalln("Can not get Hostname", err)
 	}
 
-	var protocol string
 	var redisURL string
 	var myChnName string
 	var targetChnName string
 	var verbose bool
-	var strip bool
+	var secure bool
+
 	flag.BoolVar(&verbose, "verbose", false, "Verbose")
-	flag.BoolVar(&strip, "strip", false, "Strip target name in received message")
-	flag.StringVar(&protocol, "protocol", "0", "Protocols. 0:Non-secure")
 	flag.StringVar(&redisURL, "redis", "redis://localhost:6379/0", "Redis URL")
-	flag.StringVar(&myChnName, "name", systemHostname, "My channel name")
-	flag.StringVar(&targetChnName, "target", targetChnName, "Target channel name")
+	flag.StringVar(&myChnName, "name", systemHostname, "My channel")
+	flag.StringVar(&targetChnName, "target", targetChnName, "Target channel. No need to specify target channel in sending message.")
+	flag.BoolVar(&secure, "secure", false, "Secure messages.")
 	flag.Parse()
 
 	if verbose {
@@ -66,14 +62,7 @@ func main() {
 	// check command
 	command := flag.Args()
 
-	// check protocol
-	switch protocol {
-	case "0":
-	default:
-		log.Fatalf("Not supported protocol '%s'", protocol)
-	}
-
-	var subCh <-chan *redis.Message
+	var remoteCh <-chan *redis.Message
 	var rdb *redis.Client
 
 	// check redis connection
@@ -107,11 +96,17 @@ func main() {
 	rdb = redis.NewClient(&redisOptions)
 	_, err = rdb.Ping(ctx).Result()
 	if err != nil {
-		log.Fatalf("Redis Ping Fail", err)
+		log.Fatalln("Redis Ping Fail", err)
 	} else {
 		pubsub := rdb.Subscribe(ctx, myChnName)
 		defer pubsub.Close()
-		subCh = pubsub.Channel()
+		remoteCh = pubsub.Channel()
+	}
+
+	var cryptor = messages.NewCryptor(rdb)
+	err = cryptor.RegisterPubkey(ctx, myChnName)
+	if err != nil {
+		log.Fatalln("Pubkey Register Fail", err)
 	}
 
 	// signal notification
@@ -123,25 +118,23 @@ func main() {
 		cmd := exec.Command(command[0], command[1:]...) //Just for testing, replace with your subProcess
 		// pass Env
 		cmd.Env = os.Environ()
-		cmd.Env = append(cmd.Env, "RPIPE_PROTOCOL="+protocol)
-
+		//cmd.Env = append(cmd.Env, "RPIPE_PROTOCOL="+proto)
 		spawnInfo, err = spawn.Spawn(ctx, cmd)
 		if err != nil {
 			log.Fatalln("Spawn Error", err)
 			return
 		}
 	}
-
-	var readCh <-chan string
+	var localCh <-chan string
 	var readErrorCh <-chan string
 	var writeCh chan<- string
 
 	if spawnInfo != nil {
-		readCh = spawnInfo.Out
+		localCh = spawnInfo.Out
 		readErrorCh = spawnInfo.Err
 		writeCh = spawnInfo.In
 	} else {
-		readCh = spawn.ReaderChannel(os.Stdin)
+		localCh = spawn.ReaderChannel(os.Stdin)
 		readErrorCh = make(chan string)
 		writeCh = spawn.WriterChannel(os.Stdout)
 	}
@@ -150,7 +143,6 @@ func main() {
 		LogFormat: "%msg%",
 	})
 	log.Printf("Rpipe V%s\n", VERSION)
-	log.Printf("  protocol  : %s\n", protocol)
 	log.Printf("  name      : %s\n", myChnName)
 	if targetChnName != "" {
 		log.Printf("  target    : %s\n", targetChnName)
@@ -160,7 +152,7 @@ func main() {
 
 	log.Printf("  redis     : %s\n", redisURL)
 	log.Printf("  verbose   : %t\n", verbose)
-	log.Printf("  strip     : %t\n", strip)
+	log.Printf("  secure    : %t\n", secure)
 	if spawnInfo != nil {
 		log.Printf("  Command   : %v\n", command)
 	} else {
@@ -180,74 +172,89 @@ MainLoop:
 
 			log.Infof("[ERR] %s", data)
 
-		case data, ok := <-readCh: // CHILD -> REDIS
-			log.Debugln("case <-readCh")
+		case data, ok := <-localCh: // CHILD -> REDIS
+			log.Debugln("case <-localCh")
 			if ok == false {
-				log.Debugf("readCh is closed\n")
+				log.Debugf("localCh is closed\n")
 				break MainLoop
 				//continue
-			} else {
-				var targetChn string
-				var payload string
+			}
 
-				if targetChnName != "" {
-					targetChn = targetChnName
-					payload = protocol + ":" + myChnName + ":" + data
-				} else {
-					// "TARGET:PAYLOAD" -> "0:SOURCE:PAYLOAD" -> [TARGET]
-					matched := ver0MsgPat.FindStringSubmatch(data)
-					if len(matched) != 3 {
-						log.Warningf("No target channel in '%s' (pub ver0)", data)
-						continue MainLoop
+			msg, err := messages.NewMsgFromString(data)
+			if err != nil {
+				log.Warningln("Unmarshal Error from Local", err)
+				continue MainLoop
+			}
+			msg.From = myChnName
+			if targetChnName != "" {
+				msg.To = targetChnName
+			}
+			if secure {
+				symKey, err := cryptor.FetchRemoteSymkey(ctx, msg)
+				if err != nil {
+					if err == messages.ExpireError {
+						// new symkey register
+						log.Debugln("Register New Symkey", msg.SymkeyName())
+						symKey, err = cryptor.RegisterNewSymkeyForRemote(ctx, msg)
+						if err != nil {
+							log.Warningln("Register New Symkey Fail  to Remote", err)
+							continue MainLoop
+						}
+						msg.Refresh = true
 					} else {
-						targetChn = matched[1]
-						payload = protocol + ":" + myChnName + ":" + matched[2]
+						log.Warningln("Fetch Symkey Fail to Remote", err)
+						continue MainLoop
 					}
 				}
-				log.Debugf("[PUB-%s] %s", targetChn, escapeNewLine(payload))
-				//log.Infof("PUB-%s %d", targetChn, len(payload))
-				rdb.Publish(ctx, targetChn, payload)
+				cryptedData, err := messages.EncryptMessage(symKey, msg.Data)
+				if err != nil {
+					log.Warningln("EncryptMessageFail Fail to Remote", err)
+					continue MainLoop
+				}
+				msg.Data = cryptedData
+				msg.Secured = true
 			}
+			log.Debugf("[PUB-%s] %s", msg.To, escapeNewLine(msg.Data))
+			rdb.Publish(ctx, msg.To, msg.Marshal())
 
 		case <-sigs:
 			log.Debugln("case <-sigs")
 			break MainLoop
 
-		case msg := <-subCh:
+		case subMsg := <-remoteCh:
 			log.Debugln("case <-subsh")
 
-			data := msg.Payload
-			matched := verPat.FindStringSubmatch(data)
-			if len(matched) != 3 {
-				log.Warningf("Invalid format '%s' (sub)", data)
+			payload := subMsg.Payload
+
+			msg, err := messages.NewMsgFromString(payload)
+			if err != nil {
+				log.Warningln("Unmarshal Error from Remote", err)
 				continue MainLoop
 			}
-			data_protocol := matched[1] // for extending protocols
-			body := matched[2]
-			log.Debugf("[SUB-%s] %s\n", msg.Channel, escapeNewLine(data))
-			//log.Printf("SUB-%s %d\n", msg.Channel, len(data))
-			switch data_protocol {
-			case "0":
-				if strip {
-					matched = ver0MsgPat.FindStringSubmatch(body)
-					if len(matched) != 3 {
-						log.Warningf("No target channel in '%s' (pub ver0)", data)
-					} else {
-						body = matched[2]
-					}
-					writeCh <- body
-				}else{
-					if ver0MsgPat.MatchString(body) == false {
-						log.Warningf("Invalid format '%s' (sub ver0)", body)
-					}
-					writeCh <- body
+			msg.To = subMsg.Channel
+
+			// process
+			log.Debugf("[SUB-%s] %s\n", msg.From, escapeNewLine(msg.Data))
+			if msg.From == "" {
+				log.Warningln("No 'From' in message from Remote", err)
+			}
+			if msg.Secured {
+				// Decrypt with symmetric key
+				symKey, err := cryptor.FetchRemoteSymkey(ctx, msg)
+				if err != nil {
+					log.Warningln("Fetch Symkey Fail from Remote", err)
+					continue MainLoop
 				}
-
-
-			default:
-				log.Warningf("Not supported protocol '%s' (sub)", data_protocol)
-				continue MainLoop
+				decryptedData, err := messages.DecryptMessage(symKey, msg.Data)
+				if err != nil {
+					log.Warningln("Decrypt Fail from Remote", err)
+					continue MainLoop
+				}
+				msg.Data = decryptedData
+				msg.Secured = false
 			}
+			writeCh <- msg.Marshal()
+
 		}
 	}
 	log.Debugln("Bye~")
