@@ -35,11 +35,6 @@ func main() {
 		flag.PrintDefaults()
 	}
 
-	systemHostname, err := os.Hostname()
-	if err != nil {
-		log.Fatalln("Can not get Hostname", err)
-	}
-
 	var redisURL string
 	var myChnName string
 	var targetChnName string
@@ -48,7 +43,7 @@ func main() {
 
 	flag.BoolVar(&verbose, "verbose", false, "Verbose")
 	flag.StringVar(&redisURL, "redis", "redis://localhost:6379/0", "Redis URL")
-	flag.StringVar(&myChnName, "name", systemHostname, "My channel")
+	flag.StringVar(&myChnName, "name", "", "My channel")
 	flag.StringVar(&targetChnName, "target", targetChnName, "Target channel. No need to specify target channel in sending message.")
 	flag.BoolVar(&secure, "secure", false, "Secure messages.")
 	flag.Parse()
@@ -57,6 +52,10 @@ func main() {
 		log.SetLevel(log.DebugLevel)
 	} else {
 		log.SetLevel(log.InfoLevel)
+	}
+
+	if myChnName == "" {
+		log.Fatalln("-name flag is required")
 	}
 
 	// check command
@@ -139,6 +138,8 @@ func main() {
 		writeCh = spawn.WriterChannel(os.Stdout)
 	}
 
+	pipeMode := myChnName != "" && targetChnName != ""
+
 	log.SetFormatter(&easy.Formatter{
 		LogFormat: "%msg%",
 	})
@@ -153,11 +154,8 @@ func main() {
 	log.Printf("  redis     : %s\n", redisURL)
 	log.Printf("  verbose   : %t\n", verbose)
 	log.Printf("  secure    : %t\n", secure)
-	if spawnInfo != nil {
-		log.Printf("  Command   : %v\n", command)
-	} else {
-		log.Printf("  Command   : <PIPE MODE>\n")
-	}
+	log.Printf("  command   : %v\n", command)
+	log.Printf("  pipemode  : %t\n", pipeMode)
 	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
 
 MainLoop:
@@ -179,11 +177,19 @@ MainLoop:
 				break MainLoop
 				//continue
 			}
-
-			msg, err := messages.NewMsgFromString(data)
-			if err != nil {
-				log.Warningln("Unmarshal Error from Local", err)
-				continue MainLoop
+			var msg *messages.Msg
+			if pipeMode {
+				msg = &messages.Msg{
+					From: myChnName,
+					To:   targetChnName,
+					Data: data,
+				}
+			} else {
+				msg, err = messages.NewMsgFromString(data)
+				if err != nil {
+					log.Warningln("Unmarshal Error from Local", err)
+					continue MainLoop
+				}
 			}
 			msg.From = myChnName
 			if targetChnName != "" {
@@ -251,9 +257,13 @@ MainLoop:
 					continue MainLoop
 				}
 				msg.Data = decryptedData
-				msg.Secured = false
+				//msg.Secured = false
 			}
-			writeCh <- msg.Marshal()
+			if pipeMode {
+				writeCh <- msg.Data
+			} else {
+				writeCh <- msg.Marshal()
+			}
 
 		}
 	}
