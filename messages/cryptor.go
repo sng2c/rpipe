@@ -72,20 +72,21 @@ func (c *Cryptor) FetchRemotePubkey(ctx context.Context, msg *Msg) (*rsa.PublicK
 }
 
 func (c *Cryptor) FetchRemoteSymkey(ctx context.Context, msg *Msg) (*SymKey, error) {
-	symkeyFullname := fmt.Sprintf("RPIPE:SYMKEYS:%s", msg.SymkeyName())
 	if msg.Refresh {
-		log.Debugf("Refresh symKey for %s\n", symkeyFullname)
+		log.Debugf("Expire forcely symKey for %s\n", msg.SymkeyName())
 		// 새로 가져온다.
 		delete(c.cache, msg.SymkeyName())
 		// symm 을 다시 말아준다.
-		_, err := c.RegisterNewSymkeyForRemote(ctx, &Msg{From: msg.To, To:msg.From})
+		msgrev := &Msg{From: msg.To, To:msg.From}
+		_, err := c.RegisterNewSymkeyForRemote(ctx, msgrev)
+		log.Debugf("Re-register forcely for %s\n", msgrev.SymkeyName())
 		if err != nil {
 			return nil, err
 		}
 	}
 	symKey, ok := c.cache[msg.SymkeyName()]
 	if !ok {
-
+		symkeyFullname := fmt.Sprintf("RPIPE:SYMKEYS:%s", msg.SymkeyName())
 		log.Debugf("Update Symkey %s\n", symkeyFullname)
 		pkiCryptedSymkey, err := c.rdb.Get(ctx, symkeyFullname).Result()
 		if err != nil {

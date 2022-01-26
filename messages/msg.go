@@ -13,9 +13,6 @@ type Msg struct {
 func (m *Msg) SymkeyName() string {
 	return m.From + ":" + m.To
 }
-func (m *Msg) SymkeyNameRev() string {
-	return m.To + ":" + m.From
-}
 func (m *Msg) Marshal() string {
 	j, err := json.Marshal(m)
 	if err != nil {
