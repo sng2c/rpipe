@@ -39,13 +39,13 @@ func main() {
 	var myChnName string
 	var targetChnName string
 	var verbose bool
-	var secure bool
+	var nonsecure bool
 
 	flag.BoolVar(&verbose, "verbose", false, "Verbose")
 	flag.StringVar(&redisURL, "redis", "redis://localhost:6379/0", "Redis URL")
 	flag.StringVar(&myChnName, "name", "", "My channel. Required")
 	flag.StringVar(&targetChnName, "target", targetChnName, "Target channel. No need to specify target channel in sending message.")
-	flag.BoolVar(&secure, "secure", false, "Secure messages.")
+	flag.BoolVar(&nonsecure, "nonsecure", false, "Non-Secure messages.")
 	flag.Parse()
 
 	if verbose {
@@ -154,7 +154,7 @@ func main() {
 
 	log.Printf("  redis     : %s\n", redisURL)
 	log.Printf("  verbose   : %t\n", verbose)
-	log.Printf("  secure    : %t\n", secure)
+	log.Printf("  nonsecure : %t\n", nonsecure)
 	log.Printf("  command   : %v\n", command)
 	log.Printf("  pipemode  : %t\n", pipeMode)
 	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
@@ -196,7 +196,7 @@ MainLoop:
 			if targetChnName != "" {
 				msg.To = targetChnName
 			}
-			if secure {
+			if !nonsecure {
 				symKey, err := cryptor.FetchRemoteSymkey(ctx, msg)
 				if err != nil {
 					if err == messages.ExpireError {
