@@ -2,6 +2,7 @@ package spawn
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	log "github.com/sirupsen/logrus"
 	"io"
@@ -21,6 +22,41 @@ func ReaderChannel(rd io.Reader) <-chan string {
 	return recvch
 }
 
+//
+func ReaderBufferChannel(rd io.Reader, bufsize int, delim byte) <-chan []byte {
+	recvch := make(chan []byte)
+	go func() {
+		defer close(recvch)
+		full := []byte{}
+		for {
+			buf := make([]byte, bufsize-len(full))
+			hasRead, err := rd.Read(buf)
+			if err != nil {
+				break
+			}
+			buf = buf[:hasRead]
+			for {
+				found := bytes.IndexByte(buf, delim)
+				if found == -1 {
+					// flush all
+					full = append(full, buf...)
+					if len(full) >= bufsize {
+						recvch <- full
+						full = []byte{}
+					}
+					break
+				} else {
+					recvch <- buf[:found+1]
+					buf = buf[found+1:]
+				}
+			}
+		}
+		if len(full) > 0 {
+			recvch <- full
+		}
+	}()
+	return recvch
+}
 func WriterChannel(wr io.Writer) chan<- string {
 	sendch := make(chan string)
 	go func() {
