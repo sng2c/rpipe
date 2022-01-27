@@ -40,12 +40,14 @@ func main() {
 	var targetChnName string
 	var verbose bool
 	var nonsecure bool
+	var pipeMode bool
 
 	flag.BoolVar(&verbose, "verbose", false, "Verbose")
 	flag.StringVar(&redisURL, "redis", "redis://localhost:6379/0", "Redis URL")
 	flag.StringVar(&myChnName, "name", "", "My channel. Required")
 	flag.StringVar(&targetChnName, "target", targetChnName, "Target channel. No need to specify target channel in sending message.")
 	flag.BoolVar(&nonsecure, "nonsecure", false, "Non-Secure messages.")
+	flag.BoolVar(&pipeMode, "pipe", false, "Type and show data only. And process EOF.")
 	flag.Parse()
 
 	if verbose {
@@ -64,6 +66,13 @@ func main() {
 
 	var remoteCh <-chan *redis.Message
 	var rdb *redis.Client
+
+	// check pipemode
+	if pipeMode {
+		if myChnName == "" || targetChnName == "" {
+			log.Fatalln("-name and -target flag is required")
+		}
+	}
 
 	// check redis connection
 	redisAddr, err := url.Parse(redisURL)
@@ -139,8 +148,6 @@ func main() {
 		writeCh = spawn.WriterChannel(os.Stdout)
 	}
 
-	pipeMode := myChnName != "" && targetChnName != ""
-
 	log.SetFormatter(&easy.Formatter{
 		LogFormat: "%msg%",
 	})
@@ -197,17 +204,16 @@ MainLoop:
 				msg.To = targetChnName
 			}
 			if !nonsecure {
-				symKey, err := cryptor.FetchRemoteSymkey(ctx, msg)
+				symKey, err := cryptor.FetchSymkey(ctx, msg)
 				if err != nil {
 					if err == messages.ExpireError {
 						// new symkey register
 						log.Debugln("Register New Symkey", msg.SymkeyName())
-						symKey, err = cryptor.RegisterNewSymkeyForRemote(ctx, msg)
+						symKey, err = cryptor.RegisterNewOutboundSymkey(ctx, msg)
 						if err != nil {
 							log.Warningln("Register New Symkey Fail  to Remote", err)
 							continue MainLoop
 						}
-						msg.Refresh = true
 					} else {
 						log.Warningln("Fetch Symkey Fail to Remote", err)
 						continue MainLoop
@@ -221,8 +227,9 @@ MainLoop:
 				msg.Data = cryptedData
 				msg.Secured = true
 			}
-			log.Debugf("[PUB-%s] %s", msg.To, escapeNewLine(msg.Data))
-			rdb.Publish(ctx, msg.To, msg.Marshal())
+			msgJson := msg.Marshal()
+			log.Debugf("[PUB-%s] %s", msg.To, msgJson)
+			rdb.Publish(ctx, msg.To, msgJson)
 
 		case <-sigs:
 			log.Debugln("case <-sigs")
@@ -240,14 +247,31 @@ MainLoop:
 			}
 			msg.To = subMsg.Channel
 
+			log.Debugf("[SUB-%s] %s\n", msg.From, msg.Marshal())
+
+			if msg.Control == 1 {
+				err := cryptor.ResetInboundSymkey(ctx, msg)
+				if err != nil {
+					log.Warningln("ResetInboundSymkey", err)
+				}
+				continue MainLoop
+			}
+			if msg.Control == 2 {
+				if pipeMode {
+					log.Debugln("EOF received on pipemode", err)
+					break MainLoop
+				}
+				continue MainLoop
+			}
+
 			// process
-			log.Debugf("[SUB-%s] %s\n", msg.From, escapeNewLine(msg.Data))
+
 			if msg.From == "" {
 				log.Warningln("No 'From' in message from Remote", err)
 			}
 			if msg.Secured {
 				// Decrypt with symmetric key
-				symKey, err := cryptor.FetchRemoteSymkey(ctx, msg)
+				symKey, err := cryptor.FetchSymkey(ctx, msg)
 				if err != nil {
 					log.Warningln("Fetch Symkey Fail from Remote", err)
 					continue MainLoop
@@ -258,7 +282,7 @@ MainLoop:
 					continue MainLoop
 				}
 				msg.Data = decryptedData
-				//msg.Secured = false
+				msg.Secured = false
 			}
 			if pipeMode {
 				writeCh <- msg.Data
@@ -267,6 +291,16 @@ MainLoop:
 			}
 
 		}
+	}
+	if pipeMode {
+		eofMsg := messages.Msg{
+			From:    myChnName,
+			To:      targetChnName,
+			Control: 2,
+		}
+		eofMsgJson := eofMsg.Marshal()
+		log.Debugf("[PUB-%s] %s", eofMsg.To, eofMsgJson)
+		_, _ = rdb.Publish(ctx, eofMsg.To, eofMsgJson).Result()
 	}
 	log.Debugln("Bye~")
 }

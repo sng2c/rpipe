@@ -3,11 +3,11 @@ package messages
 import "encoding/json"
 
 type Msg struct {
-	From     string `json:"from"`
-	To       string `json:"to"`
-	Data     string `json:"data"`
-	Secured  bool   `json:"sec"`
-	Refresh  bool   `json:"ref"`
+	From    string `json:"from,omitempty"`
+	To      string `json:"to,omitempty"`
+	Data    string `json:"data,omitempty"`
+	Secured bool   `json:"sec,omitempty"`
+	Control int    `json:"ctl,omitempty"` // 0: msg, 1: reset Symkey, 2: EOF
 }
 
 func (m *Msg) SymkeyName() string {

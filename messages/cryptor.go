@@ -14,6 +14,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
 	"io"
+	"strings"
 	"time"
 )
 
@@ -23,11 +24,11 @@ var ExpireError = errors.New("SymKey has expired")
 
 type Cryptor struct {
 	PrivateKey *rsa.PrivateKey
-	rdb   *redis.Client
-	cache map[string]*SymKey
+	rdb        *redis.Client
+	cache      map[string]*SymKey
 }
 type SymKey struct {
-	Key      []byte
+	Key []byte
 }
 
 func NewCryptor(rdb *redis.Client) *Cryptor {
@@ -39,31 +40,69 @@ func NewCryptor(rdb *redis.Client) *Cryptor {
 		cache:      make(map[string]*SymKey),
 	}
 }
+func (c *Cryptor) ResetInboundSymkey(ctx context.Context, msg *Msg) error {
+	log.Debugf("Expire SYMKEY for %s\n", msg.SymkeyName())
+	delete(c.cache, msg.SymkeyName())
 
-func (c *Cryptor) RegisterPubkey(ctx context.Context, chnName string) error {
-
-	keys, err := c.rdb.Keys(ctx, "RPIPE:SYMKEYS:"+chnName+":*").Result()
-	log.Debugf("Remove Keys %v\n", keys)
+	// 반대쪽 symm 을 다시 말아준다.`
+	msgrev := &Msg{From: msg.To, To: msg.From}
+	_, err := c.RegisterNewOutboundSymkey(ctx, msgrev)
+	log.Debugf("Register SYMKEY for %s\n", msgrev.SymkeyName())
 	if err != nil {
 		return err
 	}
-	for _, k := range keys {
-		_, err := c.rdb.Del(ctx, k).Result()
+	return nil
+}
+func (c *Cryptor) RegisterPubkey(ctx context.Context, chnName string) error {
+
+	{
+		pubkeyStr := EncodePubkey(&c.PrivateKey.PublicKey)
+		_, err := c.rdb.Set(ctx, "RPIPE:PUBKEYS:"+chnName, pubkeyStr, 0).Result()
 		if err != nil {
-			log.Debugln("Delete SYMKEYS "+k, err)
 			return err
 		}
 	}
 
-	pubkeyStr := EncodePubkey(&c.PrivateKey.PublicKey)
-	_, err = c.rdb.Set(ctx, "RPIPE:PUBKEYS:"+chnName, pubkeyStr, 0).Result()
-	if err != nil {
-		return err
+	// Delete Symkeys from ME
+	{
+		keys, err := c.rdb.Keys(ctx, "RPIPE:SYMKEYS:"+chnName+":*").Result()
+		log.Debugf("Remove Keys %v\n", keys)
+		if err != nil {
+			return err
+		}
+		for _, k := range keys {
+			_, err := c.rdb.Del(ctx, k).Result()
+			if err != nil {
+				log.Warningln("Delete SYMKEYS "+k, err)
+				return err
+			}
+		}
+	}
+
+	// Publish Reset Symkeys to ME
+	{
+		keys, err := c.rdb.Keys(ctx, "RPIPE:SYMKEYS:*:"+chnName).Result()
+		log.Debugf("Publish Reset SYMKEYS %v\n", keys)
+		if err != nil {
+			return err
+		}
+		for _, k := range keys {
+			ks := strings.SplitN(k, ":", 4)
+			targetChnName := ks[2]
+			resetMsg := Msg{From: chnName, To: targetChnName, Control: 1}
+			resetMsgJson := resetMsg.Marshal()
+			log.Debugf("[PUB-%s] %s", targetChnName, resetMsgJson)
+			_, err := c.rdb.Publish(ctx, targetChnName, resetMsgJson).Result()
+			if err != nil {
+				log.Warningln("Publish Reset SYMKEYS to "+targetChnName, err)
+				return err
+			}
+		}
 	}
 
 	return nil
 }
-func (c *Cryptor) FetchRemotePubkey(ctx context.Context, msg *Msg) (*rsa.PublicKey, error) {
+func (c *Cryptor) FetchTargetPubkey(ctx context.Context, msg *Msg) (*rsa.PublicKey, error) {
 	result, err := c.rdb.Get(ctx, "RPIPE:PUBKEYS:"+msg.To).Result()
 	if err != nil {
 		return nil, err
@@ -71,19 +110,7 @@ func (c *Cryptor) FetchRemotePubkey(ctx context.Context, msg *Msg) (*rsa.PublicK
 	return DecodePubkey(result), nil
 }
 
-func (c *Cryptor) FetchRemoteSymkey(ctx context.Context, msg *Msg) (*SymKey, error) {
-	if msg.Refresh {
-		log.Debugf("Expire forcely symKey for %s\n", msg.SymkeyName())
-		// 새로 가져온다.
-		delete(c.cache, msg.SymkeyName())
-		// symm 을 다시 말아준다.
-		msgrev := &Msg{From: msg.To, To:msg.From}
-		_, err := c.RegisterNewSymkeyForRemote(ctx, msgrev)
-		log.Debugf("Re-register forcely for %s\n", msgrev.SymkeyName())
-		if err != nil {
-			return nil, err
-		}
-	}
+func (c *Cryptor) FetchSymkey(ctx context.Context, msg *Msg) (*SymKey, error) {
 	symKey, ok := c.cache[msg.SymkeyName()]
 	if !ok {
 		symkeyFullname := fmt.Sprintf("RPIPE:SYMKEYS:%s", msg.SymkeyName())
@@ -111,9 +138,9 @@ func randStringBytes(n int) []byte {
 	return key
 }
 
-func (c *Cryptor) RegisterNewSymkeyForRemote(ctx context.Context, msg *Msg) (*SymKey, error) {
+func (c *Cryptor) RegisterNewOutboundSymkey(ctx context.Context, msg *Msg) (*SymKey, error) {
 	symkeyFullname := fmt.Sprintf("RPIPE:SYMKEYS:%s", msg.SymkeyName())
-	pubkey, err := c.FetchRemotePubkey(ctx, msg)
+	pubkey, err := c.FetchTargetPubkey(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -127,11 +154,12 @@ func (c *Cryptor) RegisterNewSymkeyForRemote(ctx context.Context, msg *Msg) (*Sy
 		return nil, err
 	}
 	symkey := SymKey{
-		Key:      newKey,
+		Key: newKey,
 	}
 	c.cache[msg.SymkeyName()] = &symkey
 	return &symkey, nil
 }
+
 func EncryptMessage(symKey *SymKey, message string) (string, error) {
 	byteMsg := []byte(message)
 	block, err := aes.NewCipher(symKey.Key)
