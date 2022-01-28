@@ -9,11 +9,11 @@ import (
 	"os/exec"
 )
 
-const BufSize = 262144
+const BlockSize = 8192
 
 
 func ReaderChannel(rd io.Reader) <-chan []byte {
-	return ReaderBufferChannel(rd, BufSize, '\n')
+	return ReaderBufferChannel(rd, BlockSize, '\n')
 }
 
 func ReaderBufferChannel(rd io.Reader, bufsize int, delim byte) <-chan []byte {
