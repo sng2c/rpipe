@@ -79,7 +79,7 @@ func main() {
 
 	// check pipemode
 	if pipeMode {
-		if myChnName == "" || targetChnName == "" {
+		if targetChnName == "" {
 			log.Fatalln("-name and -target flag is required")
 		}
 	}
@@ -211,9 +211,7 @@ MainLoop:
 			if targetChnName != "" {
 				msg.To = targetChnName
 			}
-			if pipeMode {
-				msg.To = targetChnName
-			}
+			
 			if !nonsecure {
 				symKey, err := cryptor.FetchSymkey(ctx, msg)
 				if err != nil {
@@ -247,7 +245,7 @@ MainLoop:
 			break MainLoop
 
 		case subMsg := <-remoteCh:
-			log.Debugln("case <-subsh")
+			log.Debugln("case <-remoteCh")
 
 			payload := subMsg.Payload
 
