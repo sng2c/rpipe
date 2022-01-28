@@ -203,6 +203,9 @@ MainLoop:
 			if targetChnName != "" {
 				msg.To = targetChnName
 			}
+			if pipeMode {
+				msg.To = targetChnName
+			}
 			if !nonsecure {
 				symKey, err := cryptor.FetchSymkey(ctx, msg)
 				if err != nil {
@@ -211,7 +214,7 @@ MainLoop:
 						log.Debugln("Register New Symkey", msg.SymkeyName())
 						symKey, err = cryptor.RegisterNewOutboundSymkey(ctx, msg)
 						if err != nil {
-							log.Warningln("Register New Symkey Fail  to Remote", err)
+							log.Warningln("Register New Symkey Fail to Remote", err)
 							continue MainLoop
 						}
 					} else {
@@ -244,6 +247,12 @@ MainLoop:
 			if err != nil {
 				log.Warningln("Unmarshal Error from Remote", err)
 				continue MainLoop
+			}
+			if pipeMode {
+				if msg.From != targetChnName {
+					log.Warningf("A message from %s is not targeted.", msg.From)
+					continue MainLoop
+				}
 			}
 			msg.To = subMsg.Channel
 
