@@ -9,7 +9,7 @@ import (
 	"os/exec"
 )
 
-const BufSize = 8192
+const BufSize = 262144
 
 
 func ReaderChannel(rd io.Reader) <-chan []byte {
