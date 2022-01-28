@@ -2,7 +2,6 @@ package messages
 
 import "encoding/json"
 
-
 type Msg struct {
 	From    string `json:"from,omitempty"`
 	To      string `json:"to,omitempty"`

@@ -13,20 +13,23 @@
 
 ```bash
 $ ./rpipe -h
-Usage: ./rpipe [flags] COMMAND...
+Usage: ./rpipe [flags] [COMMAND...]
 Flags:
   -name string
-    	My channel
+        My channel. Required
+  -nonsecure
+        Non-Secure messages.
+  -pipe
+        Type and show data only. And process EOF.
   -redis string
-    	Redis URL (default "redis://localhost:6379/0")
-  -secure
-    	Secure messages.
+        Redis URL (default "redis://localhost:6379/0")
   -target string
-    	Target channel. No need to specify target channel in sending message.
+        Target channel. No need to specify target channel in sending message.
   -verbose
-    	Verbose
+        Verbose
 ```
 
+### 
 
 ## TO-DO
 * ~~Secure (PKI)~~
