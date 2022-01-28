@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/go-redis/redis/v8"
+	easy "github.com/t-tomalak/logrus-easy-formatter"
 	"net/url"
 	"os"
 	"os/exec"
@@ -17,7 +18,6 @@ import (
 )
 import (
 	log "github.com/sirupsen/logrus"
-	easy "github.com/t-tomalak/logrus-easy-formatter"
 )
 
 var ctx = context.Background()
@@ -29,6 +29,10 @@ func escapeNewLine(s string) string {
 const VERSION = "0.1"
 
 func main() {
+	log.SetFormatter(&easy.Formatter{
+		LogFormat: "%msg%",
+	})
+
 	flag.Usage = func() {
 		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [flags] [COMMAND...]\n", os.Args[0])
 		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Flags:\n")
@@ -43,11 +47,17 @@ func main() {
 	var pipeMode bool
 
 	flag.BoolVar(&verbose, "verbose", false, "Verbose")
+	flag.BoolVar(&verbose, "v", false, "Verbose")
 	flag.StringVar(&redisURL, "redis", "redis://localhost:6379/0", "Redis URL")
+	flag.StringVar(&redisURL, "r", "redis://localhost:6379/0", "Redis URL")
 	flag.StringVar(&myChnName, "name", "", "My channel. Required")
+	flag.StringVar(&myChnName, "n", "", "My channel. Required")
 	flag.StringVar(&targetChnName, "target", targetChnName, "Target channel. No need to specify target channel in sending message.")
+	flag.StringVar(&targetChnName, "t", targetChnName, "Target channel. No need to specify target channel in sending message.")
 	flag.BoolVar(&nonsecure, "nonsecure", false, "Non-Secure messages.")
+	flag.BoolVar(&nonsecure, "k", false, "Non-Secure messages.")
 	flag.BoolVar(&pipeMode, "pipe", false, "Type and show data only. And process EOF.")
+	flag.BoolVar(&pipeMode, "p", false, "Type and show data only. And process EOF.")
 	flag.Parse()
 
 	if verbose {
@@ -148,9 +158,7 @@ func main() {
 		writeCh = spawn.WriterChannel(os.Stdout)
 	}
 
-	log.SetFormatter(&easy.Formatter{
-		LogFormat: "%msg%",
-	})
+
 	log.Printf("Rpipe V%s\n", VERSION)
 	log.Printf("  name      : %s\n", myChnName)
 	if targetChnName != "" {
