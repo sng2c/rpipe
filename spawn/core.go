@@ -9,63 +9,58 @@ import (
 	"os/exec"
 )
 
-func ReaderChannel(rd io.Reader) <-chan string {
-	recvch := make(chan string)
-	go func() {
-		defer close(recvch)
-		scanner := bufio.NewScanner(rd)
-		for scanner.Scan() {
-			var line = scanner.Text()
-			recvch <- line
-		}
-	}()
-	return recvch
+const BufSize = 8192
+
+
+func ReaderChannel(rd io.Reader) <-chan []byte {
+	return ReaderBufferChannel(rd, BufSize, '\n')
 }
 
-//
 func ReaderBufferChannel(rd io.Reader, bufsize int, delim byte) <-chan []byte {
 	recvch := make(chan []byte)
 	go func() {
 		defer close(recvch)
 		full := []byte{}
 		for {
-			buf := make([]byte, bufsize-len(full))
+			buf := make([]byte, bufsize)
 			hasRead, err := rd.Read(buf)
 			if err != nil {
-				break
+				break // EOF
 			}
-			buf = buf[:hasRead]
+			full = append(full, buf[:hasRead]...)
+
 			for {
-				found := bytes.IndexByte(buf, delim)
+				found := bytes.IndexByte(full, delim)
 				if found == -1 {
-					// flush all
-					full = append(full, buf...)
 					if len(full) >= bufsize {
-						recvch <- full
-						full = []byte{}
+						// flush
+						recvch <- full[:bufsize]
+						full = full[bufsize:]
 					}
 					break
 				} else {
-					recvch <- buf[:found+1]
-					buf = buf[found+1:]
+					// flush
+					recvch <- full[:found+1]
+					full = full[found+1:]
 				}
 			}
 		}
 		if len(full) > 0 {
+			//flush
 			recvch <- full
 		}
 	}()
 	return recvch
 }
-func WriterChannel(wr io.Writer) chan<- string {
-	sendch := make(chan string)
+func WriterChannel(wr io.Writer) chan<- []byte {
+	sendch := make(chan []byte)
 	go func() {
 		defer close(sendch)
 		writer := bufio.NewWriter(wr)
 		for {
 			select {
 			case data := <-sendch:
-				_, err := writer.WriteString(data + "\n")
+				_, err := writer.Write(data)
 				if err != nil {
 					log.Debug(err)
 				}
@@ -81,9 +76,9 @@ func WriterChannel(wr io.Writer) chan<- string {
 
 type SpawnedInfo struct {
 	Cmd           *exec.Cmd
-	In            chan<- string
-	Out           <-chan string
-	Err           <-chan string
+	In            chan<- []byte
+	Out           <-chan []byte
+	Err           <-chan []byte
 	CancelContext context.Context
 }
 

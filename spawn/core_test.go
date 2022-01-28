@@ -3,31 +3,31 @@ package spawn
 import (
 	"bytes"
 	"context"
-	"io"
 	"log"
 	"os/exec"
 	"reflect"
+	"strings"
 	"testing"
 )
 
-func _spawn_read(cmd *exec.Cmd) (string, error) {
+func _spawn_read(cmd *exec.Cmd) ([]byte, error) {
 	info, err := Spawn(context.Background(), cmd)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	result := <-info.Out
 	return result, nil
 }
-func _spawn_write(data string) (string, error) {
+func _spawn_write(data []byte) ([]byte, error) {
 	rinfo, err := Spawn(context.Background(), exec.Command("nc", "-l", "59999"))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	ctx := context.Background()
 	info, err := Spawn(ctx, exec.Command("nc", "localhost", "59999"))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	info.In <- data
 	log.Println("sent", data)
@@ -44,13 +44,13 @@ func Test__spawn_read(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    string
+		want    []byte
 		wantErr bool
 	}{
 		// TODO: Add test cases.
 		{name: "echo", args: args{
 			exec.Command("echo", "HELLO"),
-		}, want: "HELLO", wantErr: false},
+		}, want: []byte("HELLO\n"), wantErr: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -68,18 +68,18 @@ func Test__spawn_read(t *testing.T) {
 
 func Test__spawn_write(t *testing.T) {
 	type args struct {
-		data string
+		data []byte
 	}
 	tests := []struct {
 		name    string
 		args    args
-		want    string
+		want    []byte
 		wantErr bool
 	}{
 		// TODO: Add test cases.
 		{name: "nc pipe", args: args{
-			"WORLD",
-		}, want: "WORLD", wantErr: false},
+			[]byte("WORLD\n"),
+		}, want: []byte("WORLD\n"), wantErr: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -106,48 +106,60 @@ func consume(ch <-chan []byte) [][]byte {
 }
 func TestReaderBufferChannel(t *testing.T) {
 	type args struct {
-		rd      io.Reader
+		rd      string
 		bufsize int
 		delim   byte
 	}
 	tests := []struct {
 		name string
 		args args
-		want [][]byte
+		want string
 	}{
 		// TODO: Add test cases.
 		{
 			name: "delim and bufsize",
 			args: args{
-				rd:      bytes.NewReader([]byte("ABCDEF\nHIJKLMN\n2")),
+				rd:      "ABCDEF\nHIJKLMN\n2",
 				bufsize: 4,
 				delim:   '\n',
 			},
-			want: [][]byte{[]byte("ABCD"), []byte("EF\n"), []byte("HIJK"), []byte("LMN\n"), []byte("2")},
+			want: "ABCD_EF\n_HIJK_LMN\n_2",
 		},
 		{
 			name: "delim",
 			args: args{
-				rd:      bytes.NewReader([]byte("ABCDEF\nHIJKLMN\n2")),
+				rd:      "ABCDEF\nHIJKLMN\n2",
 				bufsize: 2000,
 				delim:   '\n',
 			},
-			want: [][]byte{[]byte("ABCDEF\n"), []byte("HIJKLMN\n"), []byte("2")},
+			want: "ABCDEF\n_HIJKLMN\n_2",
 		},
 		{
 			name: "buf",
 			args: args{
-				rd:      bytes.NewReader([]byte("ABCDEF\nHIJKLMN\n2")),
+				rd:      "ABCDEF\nHIJKLMN\n2",
 				bufsize: 3,
 				delim:   '\t',
 			},
-			want: [][]byte{[]byte("ABC"), []byte("DEF"), []byte("\nHI"), []byte("JKL"), []byte("MN\n"), []byte("2")},
+			want: "ABC_DEF_\nHI_JKL_MN\n_2",
+		},
+		{
+			name: "buf2",
+			args: args{
+				rd:      "111\n222\n333\n444\n555\n",
+				bufsize: 13,
+				delim:   '\t',
+			},
+			want: "111\n222\n333\n4_44\n555\n",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := consume(ReaderBufferChannel(tt.args.rd, tt.args.bufsize, tt.args.delim)); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ReaderBufferChannel() = %v, want %v", got, tt.want)
+			if got := consume(ReaderBufferChannel(bytes.NewReader([]byte(tt.args.rd)), tt.args.bufsize, tt.args.delim)); string(bytes.Join(got, []byte("_")))!=tt.want {
+				t.Errorf("ReaderBufferChannel() = %s, want %v",
+					strings.Replace(string(bytes.Join(got, []byte("_"))), "\n", "\\n", -1),
+					strings.Replace(tt.want, "\n", "\\n", -1),
+					)
 			}
 		})
 	}

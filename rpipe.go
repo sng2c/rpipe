@@ -134,9 +134,9 @@ func main() {
 			return
 		}
 	}
-	var localCh <-chan string
-	var readErrorCh <-chan string
-	var writeCh chan<- string
+	var localCh <-chan []byte
+	var readErrorCh <-chan []byte
+	var writeCh chan<- []byte
 
 	if spawnInfo != nil {
 		localCh = spawnInfo.Out
@@ -144,7 +144,7 @@ func main() {
 		writeCh = spawnInfo.In
 	} else {
 		localCh = spawn.ReaderChannel(os.Stdin)
-		readErrorCh = make(chan string)
+		readErrorCh = make(chan []byte)
 		writeCh = spawn.WriterChannel(os.Stdout)
 	}
 
@@ -183,7 +183,6 @@ MainLoop:
 			if ok == false {
 				log.Debugf("localCh is closed\n")
 				break MainLoop
-				//continue
 			}
 			var msg *messages.Msg
 			if pipeMode {
@@ -193,6 +192,7 @@ MainLoop:
 					Data: data,
 				}
 			} else {
+				log.Debugln(string(data))
 				msg, err = messages.NewMsgFromString(data)
 				if err != nil {
 					log.Warningln("Unmarshal Error from Local", err)
@@ -240,7 +240,7 @@ MainLoop:
 
 			payload := subMsg.Payload
 
-			msg, err := messages.NewMsgFromString(payload)
+			msg, err := messages.NewMsgFromString([]byte(payload))
 			if err != nil {
 				log.Warningln("Unmarshal Error from Remote", err)
 				continue MainLoop
@@ -287,7 +287,7 @@ MainLoop:
 			if pipeMode {
 				writeCh <- msg.Data
 			} else {
-				writeCh <- msg.Marshal()
+				writeCh <- append(msg.Marshal(), '\n')
 			}
 
 		}

@@ -160,37 +160,32 @@ func (c *Cryptor) RegisterNewOutboundSymkey(ctx context.Context, msg *Msg) (*Sym
 	return &symkey, nil
 }
 
-func EncryptMessage(symKey *SymKey, message string) (string, error) {
-	byteMsg := []byte(message)
+func EncryptMessage(symKey *SymKey, message []byte) ([]byte, error) {
+	byteMsg := message
 	block, err := aes.NewCipher(symKey.Key)
 	if err != nil {
-		return "", fmt.Errorf("could not create new cipher: %v", err)
+		return nil, fmt.Errorf("could not create new cipher: %v", err)
 	}
 
 	cipherText := make([]byte, aes.BlockSize+len(byteMsg))
 	iv := cipherText[:aes.BlockSize]
 	if _, err = io.ReadFull(rand.Reader, iv); err != nil {
-		return "", fmt.Errorf("could not encrypt: %v", err)
+		return nil, fmt.Errorf("could not encrypt: %v", err)
 	}
 
 	stream := cipher.NewCFBEncrypter(block, iv)
 	stream.XORKeyStream(cipherText[aes.BlockSize:], byteMsg)
 
-	return base64.StdEncoding.EncodeToString(cipherText), nil
+	return cipherText, nil
 }
-func DecryptMessage(symKey *SymKey, message string) (string, error) {
-	cipherText, err := base64.StdEncoding.DecodeString(message)
-	if err != nil {
-		return "", fmt.Errorf("could not base64 decode: %v", err)
-	}
-
+func DecryptMessage(symKey *SymKey, cipherText []byte) ([]byte, error) {
 	block, err := aes.NewCipher(symKey.Key)
 	if err != nil {
-		return "", fmt.Errorf("could not create new cipher: %v", err)
+		return nil, fmt.Errorf("could not create new cipher: %v", err)
 	}
 
 	if len(cipherText) < aes.BlockSize {
-		return "", fmt.Errorf("invalid ciphertext block size")
+		return nil, fmt.Errorf("invalid ciphertext block size")
 	}
 
 	iv := cipherText[:aes.BlockSize]
@@ -199,7 +194,7 @@ func DecryptMessage(symKey *SymKey, message string) (string, error) {
 	stream := cipher.NewCFBDecrypter(block, iv)
 	stream.XORKeyStream(cipherText, cipherText)
 
-	return string(cipherText), nil
+	return cipherText, nil
 }
 
 func EncryptPKI(publicKey *rsa.PublicKey, s []byte) (string, error) {
