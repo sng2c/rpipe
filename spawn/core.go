@@ -9,20 +9,17 @@ import (
 	"os/exec"
 )
 
-const BlockSize = 8192
-
-
-func ReaderChannel(rd io.Reader) <-chan []byte {
-	return ReaderBufferChannel(rd, BlockSize, '\n')
+func ReaderChannel(rd io.Reader, blockSize int) <-chan []byte {
+	return ReaderBufferChannel(rd, blockSize, '\n')
 }
 
-func ReaderBufferChannel(rd io.Reader, bufsize int, delim byte) <-chan []byte {
+func ReaderBufferChannel(rd io.Reader, blockSize int, delim byte) <-chan []byte {
 	recvch := make(chan []byte)
 	go func() {
 		defer close(recvch)
 		full := []byte{}
 		for {
-			buf := make([]byte, bufsize)
+			buf := make([]byte, blockSize)
 			hasRead, err := rd.Read(buf)
 			if err != nil {
 				break // EOF
@@ -32,10 +29,10 @@ func ReaderBufferChannel(rd io.Reader, bufsize int, delim byte) <-chan []byte {
 			for {
 				found := bytes.IndexByte(full, delim)
 				if found == -1 {
-					if len(full) >= bufsize {
+					if len(full) >= blockSize {
 						// flush
-						recvch <- full[:bufsize]
-						full = full[bufsize:]
+						recvch <- full[:blockSize]
+						full = full[blockSize:]
 					}
 					break
 				} else {
@@ -82,21 +79,21 @@ type SpawnedInfo struct {
 	CancelContext context.Context
 }
 
-func Spawn(ctx context.Context, cmd *exec.Cmd) (*SpawnedInfo, error) {
+func Spawn(ctx context.Context, blockSize int, cmd *exec.Cmd) (*SpawnedInfo, error) {
 
 	// STDOUT
 	outPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
 	}
-	outChan := ReaderChannel(outPipe)
+	outChan := ReaderChannel(outPipe, blockSize)
 
 	// STDERR
 	errPipe, err := cmd.StderrPipe()
 	if err != nil {
 		return nil, err
 	}
-	errChan := ReaderChannel(errPipe)
+	errChan := ReaderChannel(errPipe, blockSize)
 
 	// STDIN
 	inPipe, err := cmd.StdinPipe()

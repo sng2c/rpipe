@@ -45,6 +45,7 @@ func main() {
 	var verbose bool
 	var nonsecure bool
 	var pipeMode bool
+	var blockSize int
 
 	flag.BoolVar(&verbose, "verbose", false, "Verbose")
 	flag.BoolVar(&verbose, "v", false, "Verbose")
@@ -55,9 +56,9 @@ func main() {
 	flag.StringVar(&targetChnName, "target", targetChnName, "Target channel. No need to specify target channel in sending message.")
 	flag.StringVar(&targetChnName, "t", targetChnName, "Target channel. No need to specify target channel in sending message.")
 	flag.BoolVar(&nonsecure, "nonsecure", false, "Non-Secure messages.")
-	flag.BoolVar(&nonsecure, "k", false, "Non-Secure messages.")
 	flag.BoolVar(&pipeMode, "pipe", false, "Type and show data only. And process EOF.")
 	flag.BoolVar(&pipeMode, "p", false, "Type and show data only. And process EOF.")
+	flag.IntVar(&blockSize, "blocksize", 512, "blocksize in KiB. (*1024 bytes)")
 	flag.Parse()
 
 	if verbose {
@@ -138,7 +139,7 @@ func main() {
 		// pass Env
 		cmd.Env = os.Environ()
 		//cmd.Env = append(cmd.Env, "RPIPE_PROTOCOL="+proto)
-		spawnInfo, err = spawn.Spawn(ctx, cmd)
+		spawnInfo, err = spawn.Spawn(ctx, blockSize, cmd)
 		if err != nil {
 			log.Fatalln("Spawn Error", err)
 			return
@@ -153,7 +154,7 @@ func main() {
 		readErrorCh = spawnInfo.Err
 		writeCh = spawnInfo.In
 	} else {
-		localCh = spawn.ReaderChannel(os.Stdin)
+		localCh = spawn.ReaderChannel(os.Stdin, blockSize)
 		readErrorCh = make(chan []byte)
 		writeCh = spawn.WriterChannel(os.Stdout)
 	}
@@ -170,8 +171,9 @@ func main() {
 	log.Printf("  redis     : %s\n", redisURL)
 	log.Printf("  verbose   : %t\n", verbose)
 	log.Printf("  nonsecure : %t\n", nonsecure)
-	log.Printf("  command   : %v\n", command)
 	log.Printf("  pipemode  : %t\n", pipeMode)
+	log.Printf("  blocksize : %dKiB\n", blockSize)
+	log.Printf("  command   : %v\n", command)
 	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
 
 MainLoop:
