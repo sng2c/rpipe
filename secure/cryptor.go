@@ -13,8 +13,8 @@ import (
 	"fmt"
 	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
+	msgspec "github.com/sng2c/rpipe/msgspec"
 	"io"
-	"protocol/protocol"
 	"strings"
 	"time"
 )
@@ -41,7 +41,7 @@ func NewCryptor(rdb *redis.Client) *Cryptor {
 		cache:      make(map[string]*SymKey),
 	}
 }
-func (c *Cryptor) ResetInboundSymkey(ctx context.Context, msg *protocol.Msg) error {
+func (c *Cryptor) ResetInboundSymkey(ctx context.Context, msg *msgspec.Msg) error {
 	log.Debugf("Expire SYMKEY for %s\n", msg.SymkeyName())
 	delete(c.cache, msg.SymkeyName())
 
@@ -90,7 +90,7 @@ func (c *Cryptor) RegisterPubkey(ctx context.Context, chnName string) error {
 		for _, k := range keys {
 			ks := strings.SplitN(k, ":", 4)
 			targetChnName := ks[2]
-			resetMsg := protocol.Msg{From: chnName, To: targetChnName, Control: 1}
+			resetMsg := msgspec.Msg{From: chnName, To: targetChnName, Control: 1}
 			resetMsgJson := resetMsg.Marshal()
 			log.Debugf("[PUB-%s] %s", targetChnName, resetMsgJson)
 			_, err := c.rdb.Publish(ctx, targetChnName, resetMsgJson).Result()
@@ -103,7 +103,7 @@ func (c *Cryptor) RegisterPubkey(ctx context.Context, chnName string) error {
 
 	return nil
 }
-func (c *Cryptor) FetchTargetPubkey(ctx context.Context, msg *protocol.Msg) (*rsa.PublicKey, error) {
+func (c *Cryptor) FetchTargetPubkey(ctx context.Context, msg *msgspec.Msg) (*rsa.PublicKey, error) {
 	result, err := c.rdb.Get(ctx, "RPIPE:PUBKEYS:"+msg.To).Result()
 	if err != nil {
 		return nil, err
@@ -111,7 +111,7 @@ func (c *Cryptor) FetchTargetPubkey(ctx context.Context, msg *protocol.Msg) (*rs
 	return DecodePubkey(result), nil
 }
 
-func (c *Cryptor) FetchSymkey(ctx context.Context, msg *protocol.Msg) (*SymKey, error) {
+func (c *Cryptor) FetchSymkey(ctx context.Context, msg *msgspec.Msg) (*SymKey, error) {
 	symKey, ok := c.cache[msg.SymkeyName()]
 	if !ok {
 		symkeyFullname := fmt.Sprintf("RPIPE:SYMKEYS:%s", msg.SymkeyName())
@@ -139,7 +139,7 @@ func randStringBytes(n int) []byte {
 	return key
 }
 
-func (c *Cryptor) RegisterNewOutboundSymkey(ctx context.Context, msg *protocol.Msg) (*SymKey, error) {
+func (c *Cryptor) RegisterNewOutboundSymkey(ctx context.Context, msg *msgspec.Msg) (*SymKey, error) {
 	symkeyFullname := fmt.Sprintf("RPIPE:SYMKEYS:%s", msg.SymkeyName())
 	pubkey, err := c.FetchTargetPubkey(ctx, msg)
 	if err != nil {

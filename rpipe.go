@@ -5,14 +5,14 @@ import (
 	"flag"
 	"fmt"
 	"github.com/go-redis/redis/v8"
+	msgspec "github.com/sng2c/rpipe/msgspec"
+	"github.com/sng2c/rpipe/pipe"
+	"github.com/sng2c/rpipe/secure"
 	easy "github.com/t-tomalak/logrus-easy-formatter"
 	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
-	"protocol/protocol"
-	"protocol/secure"
-	"protocol/pipe"
 	"strconv"
 	"strings"
 	"syscall"
@@ -195,16 +195,16 @@ MainLoop:
 				log.Debugf("localCh is closed\n")
 				break MainLoop
 			}
-			var msg *protocol.Msg
+			var msg *msgspec.Msg
 			if pipeMode {
-				msg = &protocol.Msg{
+				msg = &msgspec.Msg{
 					From: myChnName,
 					To:   targetChnName,
 					Data: data,
 				}
 			} else {
 				log.Debugln(string(data))
-				msg, err = protocol.NewMsgFromBytes(data)
+				msg, err = msgspec.NewMsgFromBytes(data)
 				if err != nil {
 					log.Warningln("Unmarshal Error from Local", err)
 					continue MainLoop
@@ -252,7 +252,7 @@ MainLoop:
 
 			payload := subMsg.Payload
 
-			msg, err := protocol.NewMsgFromBytes([]byte(payload))
+			msg, err := msgspec.NewMsgFromBytes([]byte(payload))
 			if err != nil {
 				log.Warningln("Unmarshal Error from Remote", err)
 				continue MainLoop
@@ -311,7 +311,7 @@ MainLoop:
 		}
 	}
 	if pipeMode {
-		eofMsg := protocol.Msg{
+		eofMsg := msgspec.Msg{
 			From:    myChnName,
 			To:      targetChnName,
 			Control: 2,
