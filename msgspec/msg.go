@@ -1,4 +1,4 @@
-package _interface
+package msgspec
 
 import "encoding/json"
 
