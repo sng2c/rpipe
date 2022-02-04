@@ -5,14 +5,14 @@ import (
 	"flag"
 	"fmt"
 	"github.com/go-redis/redis/v8"
-	protocol "github.com/sng2c/rpipe/protocol"
-	"github.com/sng2c/rpipe/secure"
-	"github.com/sng2c/rpipe/spawn"
 	easy "github.com/t-tomalak/logrus-easy-formatter"
 	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
+	"protocol/protocol"
+	"protocol/secure"
+	"protocol/pipe"
 	"strconv"
 	"strings"
 	"syscall"
@@ -134,13 +134,13 @@ func main() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
-	var spawnInfo *spawn.SpawnedInfo
+	var spawnInfo *pipe.SpawnedInfo
 	if len(command) > 0 {
 		cmd := exec.Command(command[0], command[1:]...) //Just for testing, replace with your subProcess
 		// pass Env
 		cmd.Env = os.Environ()
 		//cmd.Env = append(cmd.Env, "RPIPE_PROTOCOL="+proto)
-		spawnInfo, err = spawn.Spawn(ctx, blockSize, cmd)
+		spawnInfo, err = pipe.Spawn(ctx, blockSize, cmd)
 		if err != nil {
 			log.Fatalln("Spawn Error", err)
 			return
@@ -155,9 +155,9 @@ func main() {
 		readErrorCh = spawnInfo.Err
 		writeCh = spawnInfo.In
 	} else {
-		localCh = protocol.ReadLineChannel(os.Stdin, blockSize)
+		localCh = pipe.ReadLineChannel(os.Stdin, blockSize)
 		readErrorCh = make(chan []byte)
-		writeCh = protocol.WriteLineChannel(os.Stdout)
+		writeCh = pipe.WriteLineChannel(os.Stdout)
 	}
 
 

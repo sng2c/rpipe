@@ -1,4 +1,4 @@
-package spawn
+package pipe
 
 import (
 	"bytes"

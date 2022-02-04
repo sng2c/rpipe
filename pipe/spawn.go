@@ -1,9 +1,8 @@
-package spawn
+package pipe
 
 import (
 	"context"
 	log "github.com/sirupsen/logrus"
-	rpipe "github.com/sng2c/rpipe/protocol"
 	"os/exec"
 )
 
@@ -23,21 +22,21 @@ func Spawn(ctx context.Context, blockSize int, cmd *exec.Cmd) (*SpawnedInfo, err
 	if err != nil {
 		return nil, err
 	}
-	outChan := rpipe.ReadLineChannel(outPipe, blockSize)
+	outChan := ReadLineChannel(outPipe, blockSize)
 
 	// STDERR
 	errPipe, err := cmd.StderrPipe()
 	if err != nil {
 		return nil, err
 	}
-	errChan := rpipe.ReadLineChannel(errPipe, blockSize)
+	errChan := ReadLineChannel(errPipe, blockSize)
 
 	// STDIN
 	inPipe, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, err
 	}
-	inChan := rpipe.WriteLineChannel(inPipe)
+	inChan := WriteLineChannel(inPipe)
 
 	cancelCtx, cancel := context.WithCancel(ctx)
 	go func() {

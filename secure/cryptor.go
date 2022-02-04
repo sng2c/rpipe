@@ -13,8 +13,8 @@ import (
 	"fmt"
 	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
-	"github.com/sng2c/rpipe/protocol"
 	"io"
+	"protocol/protocol"
 	"strings"
 	"time"
 )
