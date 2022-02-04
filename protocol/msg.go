@@ -1,4 +1,4 @@
-package rpipe
+package protocol
 
 import "encoding/json"
 
@@ -20,8 +20,11 @@ func (m *Msg) Marshal() []byte {
 	}
 	return j
 }
+func (m *Msg) NewReturnMsg() *Msg {
+	return &Msg{From: m.To, To:m.From}
+}
 
-func NewMsgFromString(s []byte) (*Msg, error) {
+func NewMsgFromBytes(s []byte) (*Msg, error) {
 	msg := Msg{}
 	err := json.Unmarshal(s, &msg)
 	if err != nil {

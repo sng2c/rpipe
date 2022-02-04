@@ -3,7 +3,7 @@ package spawn
 import (
 	"context"
 	log "github.com/sirupsen/logrus"
-	rpipe "github.com/sng2c/rpipe/interface"
+	rpipe "github.com/sng2c/rpipe/protocol"
 	"os/exec"
 )
 

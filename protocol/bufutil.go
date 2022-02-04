@@ -1,4 +1,4 @@
-package rpipe
+package protocol
 
 import (
 	"bufio"
