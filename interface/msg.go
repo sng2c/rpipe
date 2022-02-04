@@ -1,4 +1,4 @@
-package messages
+package rpipe
 
 import "encoding/json"
 

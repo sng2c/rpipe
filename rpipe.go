@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/go-redis/redis/v8"
-	"github.com/sng2c/rpipe/messages"
+	"github.com/sng2c/rpipe/interface"
 	"github.com/sng2c/rpipe/spawn"
 	easy "github.com/t-tomalak/logrus-easy-formatter"
 	"net/url"
@@ -55,7 +55,7 @@ func main() {
 	flag.StringVar(&myChnName, "n", "", "My channel. Required")
 	flag.StringVar(&targetChnName, "target", targetChnName, "Target channel. No need to specify target channel in sending message.")
 	flag.StringVar(&targetChnName, "t", targetChnName, "Target channel. No need to specify target channel in sending message.")
-	flag.BoolVar(&nonsecure, "nonsecure", false, "Non-Secure messages.")
+	flag.BoolVar(&nonsecure, "nonsecure", false, "Non-Secure rpipe.")
 	flag.BoolVar(&pipeMode, "pipe", false, "Type and show data only. And process EOF.")
 	flag.BoolVar(&pipeMode, "p", false, "Type and show data only. And process EOF.")
 	flag.IntVar(&blockSize, "blocksize", 512, "blocksize in KiB. (*1024 bytes)")
@@ -123,7 +123,7 @@ func main() {
 		remoteCh = pubsub.Channel()
 	}
 
-	var cryptor = messages.NewCryptor(rdb)
+	var cryptor = rpipe.NewCryptor(rdb)
 	err = cryptor.RegisterPubkey(ctx, myChnName)
 	if err != nil {
 		log.Fatalln("Pubkey Register Fail", err)
@@ -154,9 +154,9 @@ func main() {
 		readErrorCh = spawnInfo.Err
 		writeCh = spawnInfo.In
 	} else {
-		localCh = messages.LineChannel(os.Stdin, blockSize)
+		localCh = rpipe.ReadLineChannel(os.Stdin, blockSize)
 		readErrorCh = make(chan []byte)
-		writeCh = messages.WriterChannel(os.Stdout)
+		writeCh = rpipe.WriteLineChannel(os.Stdout)
 	}
 
 
@@ -194,16 +194,16 @@ MainLoop:
 				log.Debugf("localCh is closed\n")
 				break MainLoop
 			}
-			var msg *messages.Msg
+			var msg *rpipe.Msg
 			if pipeMode {
-				msg = &messages.Msg{
+				msg = &rpipe.Msg{
 					From: myChnName,
 					To:   targetChnName,
 					Data: data,
 				}
 			} else {
 				log.Debugln(string(data))
-				msg, err = messages.NewMsgFromString(data)
+				msg, err = rpipe.NewMsgFromString(data)
 				if err != nil {
 					log.Warningln("Unmarshal Error from Local", err)
 					continue MainLoop
@@ -217,7 +217,7 @@ MainLoop:
 			if !nonsecure {
 				symKey, err := cryptor.FetchSymkey(ctx, msg)
 				if err != nil {
-					if err == messages.ExpireError {
+					if err == rpipe.ExpireError {
 						// new symkey register
 						log.Debugln("Register New Symkey", msg.SymkeyName())
 						symKey, err = cryptor.RegisterNewOutboundSymkey(ctx, msg)
@@ -230,7 +230,7 @@ MainLoop:
 						continue MainLoop
 					}
 				}
-				cryptedData, err := messages.EncryptMessage(symKey, msg.Data)
+				cryptedData, err := rpipe.EncryptMessage(symKey, msg.Data)
 				if err != nil {
 					log.Warningln("EncryptMessageFail Fail to Remote", err)
 					continue MainLoop
@@ -251,7 +251,7 @@ MainLoop:
 
 			payload := subMsg.Payload
 
-			msg, err := messages.NewMsgFromString([]byte(payload))
+			msg, err := rpipe.NewMsgFromString([]byte(payload))
 			if err != nil {
 				log.Warningln("Unmarshal Error from Remote", err)
 				continue MainLoop
@@ -293,7 +293,7 @@ MainLoop:
 					log.Warningln("Fetch Symkey Fail from Remote", err)
 					continue MainLoop
 				}
-				decryptedData, err := messages.DecryptMessage(symKey, msg.Data)
+				decryptedData, err := rpipe.DecryptMessage(symKey, msg.Data)
 				if err != nil {
 					log.Warningln("Decrypt Fail from Remote", err)
 					continue MainLoop
@@ -310,7 +310,7 @@ MainLoop:
 		}
 	}
 	if pipeMode {
-		eofMsg := messages.Msg{
+		eofMsg := rpipe.Msg{
 			From:    myChnName,
 			To:      targetChnName,
 			Control: 2,

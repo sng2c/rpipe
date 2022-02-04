@@ -1,4 +1,4 @@
-package messages
+package rpipe
 
 import (
 	"bufio"
@@ -7,11 +7,11 @@ import (
 	"io"
 )
 
-func LineChannel(rd io.Reader, blockSize int) <-chan []byte {
-	return ReaderBufferChannel(rd, blockSize, '\n')
+func ReadLineChannel(rd io.Reader, blockSize int) <-chan []byte {
+	return ReadBufferChannel(rd, blockSize, '\n')
 }
 
-func ReaderBufferChannel(rd io.Reader, blockSize int, delim byte) <-chan []byte {
+func ReadBufferChannel(rd io.Reader, blockSize int, delim byte) <-chan []byte {
 	recvch := make(chan []byte)
 	go func() {
 		defer close(recvch)
@@ -47,7 +47,7 @@ func ReaderBufferChannel(rd io.Reader, blockSize int, delim byte) <-chan []byte 
 	}()
 	return recvch
 }
-func WriterChannel(wr io.Writer) chan<- []byte {
+func WriteLineChannel(wr io.Writer) chan<- []byte {
 	sendch := make(chan []byte)
 	go func() {
 		defer close(sendch)
