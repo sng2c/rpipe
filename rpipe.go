@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/go-redis/redis/v8"
-	msgspec "github.com/sng2c/rpipe/msgspec"
+	"github.com/sng2c/rpipe/msgspec"
 	"github.com/sng2c/rpipe/pipe"
 	"github.com/sng2c/rpipe/secure"
 	easy "github.com/t-tomalak/logrus-easy-formatter"

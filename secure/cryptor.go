@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"github.com/go-redis/redis/v8"
 	log "github.com/sirupsen/logrus"
-	msgspec "github.com/sng2c/rpipe/msgspec"
+	"github.com/sng2c/rpipe/msgspec"
 	"io"
 	"strings"
 	"time"
