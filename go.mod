@@ -1,4 +1,4 @@
-module rpipe
+module github.com/sng2c/rpipe
 
 go 1.17
 

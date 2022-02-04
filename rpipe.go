@@ -5,13 +5,13 @@ import (
 	"flag"
 	"fmt"
 	"github.com/go-redis/redis/v8"
+	"github.com/sng2c/rpipe/messages"
+	"github.com/sng2c/rpipe/spawn"
 	easy "github.com/t-tomalak/logrus-easy-formatter"
 	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
-	"rpipe/messages"
-	"rpipe/spawn"
 	"strconv"
 	"strings"
 	"syscall"
@@ -154,9 +154,9 @@ func main() {
 		readErrorCh = spawnInfo.Err
 		writeCh = spawnInfo.In
 	} else {
-		localCh = spawn.ReaderChannel(os.Stdin, blockSize)
+		localCh = messages.LineChannel(os.Stdin, blockSize)
 		readErrorCh = make(chan []byte)
-		writeCh = spawn.WriterChannel(os.Stdout)
+		writeCh = messages.WriterChannel(os.Stdout)
 	}
 
 
