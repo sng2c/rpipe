@@ -155,8 +155,8 @@ func TestReaderBufferChannel(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := consume(messages.ReaderBufferChannel(bytes.NewReader([]byte(tt.args.rd)), tt.args.bufsize, tt.args.delim)); string(bytes.Join(got, []byte("_")))!=tt.want {
-				t.Errorf("ReaderBufferChannel() = %s, want %v",
+			if got := consume(ReadBufferChannel(bytes.NewReader([]byte(tt.args.rd)), tt.args.bufsize, tt.args.delim)); string(bytes.Join(got, []byte("_")))!=tt.want {
+				t.Errorf("ReadBufferChannel() = %s, want %v",
 					strings.Replace(string(bytes.Join(got, []byte("_"))), "\n", "\\n", -1),
 					strings.Replace(tt.want, "\n", "\\n", -1),
 					)
