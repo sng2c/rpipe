@@ -6,7 +6,6 @@ import (
 	"log"
 	"os/exec"
 	"reflect"
-	"rpipe/messages"
 	"strings"
 	"testing"
 )
