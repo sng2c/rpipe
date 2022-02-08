@@ -1,4 +1,5 @@
 # .github/workflows/release.yaml
+name: Release
 
 on:
   release:
@@ -14,4 +15,24 @@ jobs:
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         goos: linux
+        goarch: amd64
+  release-darwin-amd64:
+    name: release darwin/amd64
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: wangyoucao577/go-release-action@v1.24
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        goos: darwin
+        goarch: amd64
+  release-windows-amd64:
+    name: release windows/amd64
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: wangyoucao577/go-release-action@v1.24
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        goos: windows
         goarch: amd64
