@@ -73,6 +73,12 @@ func main() {
 		log.Fatalln("-name flag is required")
 	}
 
+	// blockSize in KiB
+	if blockSize <= 0 {
+		blockSize = 512
+	}
+	blockSize *= 1024
+
 	// check command
 	command := flag.Args()
 
@@ -140,7 +146,7 @@ func main() {
 		// pass Env
 		cmd.Env = os.Environ()
 		//cmd.Env = append(cmd.Env, "RPIPE_PROTOCOL="+proto)
-		spawnInfo, err = pipe.Spawn(ctx, blockSize, cmd)
+		spawnInfo, err = pipe.Spawn(ctx, cmd)
 		if err != nil {
 			log.Fatalln("Spawn Error", err)
 			return

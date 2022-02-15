@@ -14,7 +14,7 @@ type SpawnedInfo struct {
 	CancelContext context.Context
 }
 
-func Spawn(ctx context.Context, blockSize int, cmd *exec.Cmd) (*SpawnedInfo, error) {
+func Spawn(ctx context.Context, cmd *exec.Cmd) (*SpawnedInfo, error) {
 
 	// STDOUT
 	outPipe, err := cmd.StdoutPipe()

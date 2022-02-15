@@ -11,7 +11,7 @@ import (
 )
 
 func _spawn_read(cmd *exec.Cmd) ([]byte, error) {
-	info, err := Spawn(context.Background(), 1024, cmd)
+	info, err := Spawn(context.Background(), cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -19,13 +19,13 @@ func _spawn_read(cmd *exec.Cmd) ([]byte, error) {
 	return result, nil
 }
 func _spawn_write(data []byte) ([]byte, error) {
-	rinfo, err := Spawn(context.Background(), 1024, exec.Command("nc", "-l", "59999"))
+	rinfo, err := Spawn(context.Background(), exec.Command("nc", "-l", "59999"))
 	if err != nil {
 		return nil, err
 	}
 
 	ctx := context.Background()
-	info, err := Spawn(ctx, 1024, exec.Command("nc", "localhost", "59999"))
+	info, err := Spawn(ctx, exec.Command("nc", "localhost", "59999"))
 	if err != nil {
 		return nil, err
 	}
