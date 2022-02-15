@@ -7,11 +7,20 @@ import (
 	"io"
 )
 
-func ReadLineChannel(rd io.Reader, blockSize int) <-chan []byte {
-	return ReadBufferChannel(rd, blockSize, '\n')
+func ReadLineChannel(rd io.Reader) <-chan []byte {
+	recvch := make(chan []byte)
+	go func() {
+		defer close(recvch)
+		scanner := bufio.NewScanner(rd)
+		for scanner.Scan() {
+			var line = scanner.Bytes()
+			recvch <- line
+		}
+	}()
+	return recvch
 }
 
-func ReadBufferChannel(rd io.Reader, blockSize int, delim byte) <-chan []byte {
+func ReadLineBufferChannel(rd io.Reader, blockSize int, delim byte) <-chan []byte {
 	recvch := make(chan []byte)
 	go func() {
 		defer close(recvch)

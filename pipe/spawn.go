@@ -6,7 +6,6 @@ import (
 	"os/exec"
 )
 
-
 type SpawnedInfo struct {
 	Cmd           *exec.Cmd
 	In            chan<- []byte
@@ -22,14 +21,14 @@ func Spawn(ctx context.Context, blockSize int, cmd *exec.Cmd) (*SpawnedInfo, err
 	if err != nil {
 		return nil, err
 	}
-	outChan := ReadLineChannel(outPipe, blockSize)
+	outChan := ReadLineChannel(outPipe)
 
 	// STDERR
 	errPipe, err := cmd.StderrPipe()
 	if err != nil {
 		return nil, err
 	}
-	errChan := ReadLineChannel(errPipe, blockSize)
+	errChan := ReadLineChannel(errPipe)
 
 	// STDIN
 	inPipe, err := cmd.StdinPipe()

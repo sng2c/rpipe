@@ -27,7 +27,7 @@ func escapeNewLine(s string) string {
 	return strings.Replace(s, "\n", "\\n", -1)
 }
 
-const VERSION = "0.1"
+const VERSION = "0.1.1"
 
 func main() {
 	log.SetFormatter(&easy.Formatter{
@@ -155,11 +155,10 @@ func main() {
 		readErrorCh = spawnInfo.Err
 		writeCh = spawnInfo.In
 	} else {
-		localCh = pipe.ReadLineChannel(os.Stdin, blockSize)
+		localCh = pipe.ReadLineBufferChannel(os.Stdin, blockSize, '\n')
 		readErrorCh = make(chan []byte)
 		writeCh = pipe.WriteLineChannel(os.Stdout)
 	}
-
 
 	log.Printf("Rpipe V%s\n", VERSION)
 	log.Printf("  name      : %s\n", myChnName)
@@ -214,7 +213,7 @@ MainLoop:
 			if targetChnName != "" {
 				msg.To = targetChnName
 			}
-			
+
 			if !nonsecure {
 				symKey, err := cryptor.FetchSymkey(ctx, msg)
 				if err != nil {
