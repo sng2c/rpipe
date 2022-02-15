@@ -6,13 +6,12 @@ import (
 	"log"
 	"os/exec"
 	"reflect"
-	"rpipe/messages"
 	"strings"
 	"testing"
 )
 
 func _spawn_read(cmd *exec.Cmd) ([]byte, error) {
-	info, err := Spawn(context.Background(), cmd)
+	info, err := Spawn(context.Background(), 1024, cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -20,13 +19,13 @@ func _spawn_read(cmd *exec.Cmd) ([]byte, error) {
 	return result, nil
 }
 func _spawn_write(data []byte) ([]byte, error) {
-	rinfo, err := Spawn(context.Background(), exec.Command("nc", "-l", "59999"))
+	rinfo, err := Spawn(context.Background(), 1024, exec.Command("nc", "-l", "59999"))
 	if err != nil {
 		return nil, err
 	}
 
 	ctx := context.Background()
-	info, err := Spawn(ctx, exec.Command("nc", "localhost", "59999"))
+	info, err := Spawn(ctx, 1024, exec.Command("nc", "localhost", "59999"))
 	if err != nil {
 		return nil, err
 	}
@@ -156,8 +155,8 @@ func TestReaderBufferChannel(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := consume(messages.ReaderBufferChannel(bytes.NewReader([]byte(tt.args.rd)), tt.args.bufsize, tt.args.delim)); string(bytes.Join(got, []byte("_")))!=tt.want {
-				t.Errorf("ReaderBufferChannel() = %s, want %v",
+			if got := consume(ReadBufferChannel(bytes.NewReader([]byte(tt.args.rd)), tt.args.bufsize, tt.args.delim)); string(bytes.Join(got, []byte("_")))!=tt.want {
+				t.Errorf("ReadBufferChannel() = %s, want %v",
 					strings.Replace(string(bytes.Join(got, []byte("_"))), "\n", "\\n", -1),
 					strings.Replace(tt.want, "\n", "\\n", -1),
 					)
