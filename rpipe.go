@@ -27,7 +27,7 @@ func escapeNewLine(s string) string {
 	return strings.Replace(s, "\n", "\\n", -1)
 }
 
-const VERSION = "0.1.1"
+const VERSION = "0.1.2"
 
 func main() {
 	log.SetFormatter(&easy.Formatter{
