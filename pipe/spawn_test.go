@@ -50,7 +50,7 @@ func Test__spawn_read(t *testing.T) {
 		// TODO: Add test cases.
 		{name: "echo", args: args{
 			exec.Command("echo", "HELLO"),
-		}, want: []byte("HELLO\n"), wantErr: false},
+		}, want: []byte("HELLO"), wantErr: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -79,7 +79,7 @@ func Test__spawn_write(t *testing.T) {
 		// TODO: Add test cases.
 		{name: "nc pipe", args: args{
 			[]byte("WORLD\n"),
-		}, want: []byte("WORLD\n"), wantErr: false},
+		}, want: []byte("WORLD"), wantErr: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -155,11 +155,11 @@ func TestReaderBufferChannel(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := consume(ReadBufferChannel(bytes.NewReader([]byte(tt.args.rd)), tt.args.bufsize, tt.args.delim)); string(bytes.Join(got, []byte("_")))!=tt.want {
+			if got := consume(ReadLineBufferChannel(bytes.NewReader([]byte(tt.args.rd)), tt.args.bufsize, tt.args.delim)); string(bytes.Join(got, []byte("_"))) != tt.want {
 				t.Errorf("ReadBufferChannel() = %s, want %v",
 					strings.Replace(string(bytes.Join(got, []byte("_"))), "\n", "\\n", -1),
 					strings.Replace(tt.want, "\n", "\\n", -1),
-					)
+				)
 			}
 		})
 	}
