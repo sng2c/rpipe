@@ -22,7 +22,7 @@ import (
 
 var ctx = context.Background()
 
-const VERSION = "0.2.0"
+const VERSION = "0.2.1"
 
 func main() {
 	log.SetFormatter(&easy.Formatter{
@@ -30,6 +30,7 @@ func main() {
 	})
 
 	flag.Usage = func() {
+		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Rpipe V%s\n", VERSION)
 		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [flags] [COMMAND...]\n", os.Args[0])
 		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Flags:\n")
 		flag.PrintDefaults()
@@ -42,7 +43,7 @@ func main() {
 	var nonsecure bool
 	var pipeMode bool
 	var blockSize int
-	defaultBlockSize := 512 + 1024
+	defaultBlockSize := 512 * 1024
 	channelLineBufferMap := make(map[string][]byte)
 
 	flag.BoolVar(&verbose, "verbose", false, "Verbose")
