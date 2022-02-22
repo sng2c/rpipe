@@ -7,6 +7,25 @@ import (
 	"io"
 )
 
+func ScanLines(buf []byte, atEOF bool) ([][]byte, []byte, error) {
+	var lines [][]byte
+	var adv = -1
+	var token []byte
+	var err error
+
+	for adv != 0 {
+		adv, token, err = bufio.ScanLines(buf, atEOF)
+		if err != nil {
+			return nil, nil, err
+		}
+		if adv != 0 {
+			lines = append(lines, token)
+			buf = buf[adv:]
+		}
+	}
+	return lines, buf, nil
+}
+
 func ReadLineChannel(rd io.Reader) <-chan []byte {
 	recvch := make(chan []byte)
 	go func() {
@@ -14,7 +33,7 @@ func ReadLineChannel(rd io.Reader) <-chan []byte {
 		scanner := bufio.NewScanner(rd)
 		for scanner.Scan() {
 			var line = scanner.Bytes()
-			recvch <- line
+			recvch <- append(line, '\n')
 		}
 	}()
 	return recvch

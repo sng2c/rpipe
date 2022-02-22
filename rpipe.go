@@ -14,7 +14,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"strconv"
-	"strings"
 	"syscall"
 )
 import (
@@ -23,11 +22,7 @@ import (
 
 var ctx = context.Background()
 
-func escapeNewLine(s string) string {
-	return strings.Replace(s, "\n", "\\n", -1)
-}
-
-const VERSION = "0.1.2"
+const VERSION = "0.2.0"
 
 func main() {
 	log.SetFormatter(&easy.Formatter{
@@ -47,6 +42,8 @@ func main() {
 	var nonsecure bool
 	var pipeMode bool
 	var blockSize int
+	defaultBlockSize := 512 + 1024
+	channelLineBufferMap := make(map[string][]byte)
 
 	flag.BoolVar(&verbose, "verbose", false, "Verbose")
 	flag.BoolVar(&verbose, "v", false, "Verbose")
@@ -59,7 +56,7 @@ func main() {
 	flag.BoolVar(&nonsecure, "nonsecure", false, "Non-Secure rpipe.")
 	flag.BoolVar(&pipeMode, "pipe", false, "Type and show data only. And process EOF.")
 	flag.BoolVar(&pipeMode, "p", false, "Type and show data only. And process EOF.")
-	flag.IntVar(&blockSize, "blocksize", 512, "blocksize in KiB. (*1024 bytes)")
+	flag.IntVar(&blockSize, "blocksize", defaultBlockSize, "blocksize in bytes")
 	flag.Parse()
 
 	if verbose {
@@ -75,9 +72,8 @@ func main() {
 
 	// blockSize in KiB
 	if blockSize <= 0 {
-		blockSize = 512
+		blockSize = defaultBlockSize
 	}
-	blockSize *= 1024
 
 	// check command
 	command := flag.Args()
@@ -145,7 +141,7 @@ func main() {
 		cmd := exec.Command(command[0], command[1:]...) //Just for testing, replace with your subProcess
 		// pass Env
 		cmd.Env = os.Environ()
-		//cmd.Env = append(cmd.Env, "RPIPE_PROTOCOL="+proto)
+		cmd.Env = append(cmd.Env, "RPIPE_NAME="+myChnName, "RPIPE_TARGET="+targetChnName)
 		spawnInfo, err = pipe.Spawn(ctx, cmd)
 		if err != nil {
 			log.Fatalln("Spawn Error", err)
@@ -161,25 +157,20 @@ func main() {
 		readErrorCh = spawnInfo.Err
 		writeCh = spawnInfo.In
 	} else {
-		localCh = pipe.ReadLineBufferChannel(os.Stdin, blockSize, '\n')
-		readErrorCh = make(chan []byte)
-		writeCh = pipe.WriteLineChannel(os.Stdout)
+		if pipeMode {
+			localCh = pipe.ReadLineBufferChannel(os.Stdin, blockSize, '\n')
+			readErrorCh = make(chan []byte)
+			writeCh = pipe.WriteLineChannel(os.Stdout)
+		} else {
+			localCh = pipe.ReadLineChannel(os.Stdin)
+			readErrorCh = make(chan []byte)
+			writeCh = pipe.WriteLineChannel(os.Stdout)
+		}
 	}
 
 	log.Printf("Rpipe V%s\n", VERSION)
-	log.Printf("  name      : %s\n", myChnName)
-	if targetChnName != "" {
-		log.Printf("  target    : %s\n", targetChnName)
-	} else {
-		log.Printf("  target    : <None>\n")
-	}
-
-	log.Printf("  redis     : %s\n", redisURL)
-	log.Printf("  verbose   : %t\n", verbose)
-	log.Printf("  nonsecure : %t\n", nonsecure)
-	log.Printf("  pipemode  : %t\n", pipeMode)
-	log.Printf("  blocksize : %dKiB\n", blockSize)
-	log.Printf("  command   : %v\n", command)
+	log.Printf("  RPIPE_NAME      : %s\n", myChnName)
+	log.Printf("  RPIPE_TARGET    : %s\n", targetChnName)
 	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
 
 MainLoop:
@@ -200,53 +191,78 @@ MainLoop:
 				log.Debugf("localCh is closed\n")
 				break MainLoop
 			}
-			var msg *msgspec.Msg
+			appMsgs := []*msgspec.ApplicationMsg{}
+
 			if pipeMode {
-				msg = &msgspec.Msg{
-					From: myChnName,
-					To:   targetChnName,
+				appMsg := &msgspec.ApplicationMsg{
+					Name: targetChnName,
 					Data: data,
 				}
+				appMsgs = append(appMsgs, appMsg)
 			} else {
 				log.Debugln(string(data))
-				msg, err = msgspec.NewMsgFromBytes(data)
+				appMsg, err := msgspec.NewApplicationMsg(data)
 				if err != nil {
 					log.Warningln("Unmarshal Error from Local", err)
 					continue MainLoop
 				}
+				// split
+				appData := appMsg.Data
+				for len(appData) >= blockSize {
+					appMsgs = append(appMsgs, &msgspec.ApplicationMsg{appMsg.Name, appData[:blockSize]})
+					appData = appData[blockSize:]
+				}
+				if len(appData) > 0 {
+					appMsgs = append(appMsgs, &msgspec.ApplicationMsg{appMsg.Name, appData})
+				}
 			}
-			msg.From = myChnName
-			if targetChnName != "" {
-				msg.To = targetChnName
-			}
+			log.Debugln(appMsgs)
 
-			if !nonsecure {
-				symKey, err := cryptor.FetchSymkey(ctx, msg)
-				if err != nil {
-					if err == secure.ExpireError {
-						// new symkey register
-						log.Debugln("Register New Symkey", msg.SymkeyName())
-						symKey, err = cryptor.RegisterNewOutboundSymkey(ctx, msg)
-						if err != nil {
-							log.Warningln("Register New Symkey Fail to Remote", err)
+			for i, appMsg := range appMsgs {
+				msg := &msgspec.RpipeMsg{
+					From: myChnName,
+					To:   appMsg.Name,
+					Data: appMsg.Data,
+					Pipe: pipeMode,
+				}
+
+				if msg.To == "" {
+					msg.To = targetChnName
+				}
+
+				if msg.To == "" {
+					log.Warningln("No target in Msg")
+					continue
+				}
+
+				if !nonsecure {
+					symKey, err := cryptor.FetchSymkey(ctx, msg)
+					if err != nil {
+						if err == secure.ExpireError {
+							// new symkey register
+							log.Debugln("Register New Symkey", msg.SymkeyName())
+							symKey, err = cryptor.RegisterNewOutboundSymkey(ctx, msg)
+							if err != nil {
+								log.Warningln("Register New Symkey Fail to Remote", err)
+								continue MainLoop
+							}
+						} else {
+							log.Warningln("Fetch Symkey Fail to Remote", err)
 							continue MainLoop
 						}
-					} else {
-						log.Warningln("Fetch Symkey Fail to Remote", err)
+					}
+					cryptedData, err := secure.EncryptMessage(symKey, msg.Data)
+					if err != nil {
+						log.Warningln("EncryptMessageFail Fail to Remote", err)
 						continue MainLoop
 					}
+					msg.Data = cryptedData
+					msg.Secured = true
 				}
-				cryptedData, err := secure.EncryptMessage(symKey, msg.Data)
-				if err != nil {
-					log.Warningln("EncryptMessageFail Fail to Remote", err)
-					continue MainLoop
-				}
-				msg.Data = cryptedData
-				msg.Secured = true
+				msgJson := msg.Marshal()
+				log.Debugf("[PUB-%s#%d] %s", msg.To, i, msgJson)
+				rdb.Publish(ctx, msg.To, msgJson)
 			}
-			msgJson := msg.Marshal()
-			log.Debugf("[PUB-%s] %s", msg.To, msgJson)
-			rdb.Publish(ctx, msg.To, msgJson)
 
 		case <-sigs:
 			log.Debugln("case <-sigs")
@@ -307,16 +323,45 @@ MainLoop:
 				msg.Data = decryptedData
 				msg.Secured = false
 			}
+
 			if pipeMode {
+				// pipemode : feed as-is
 				writeCh <- msg.Data
 			} else {
-				writeCh <- append(msg.Marshal(), '\n')
+				// non-pipemode : feed by line group by sessionId
+				// scanlines
+				lineBuf, ok := channelLineBufferMap[msg.From]
+				if !ok {
+					lineBuf = []byte{}
+				}
+				lineBuf = append(lineBuf, msg.Data...)
+				var lines [][]byte
+				lines, lineBuf, err = pipe.ScanLines(lineBuf, false)
+				if err != nil {
+					log.Warningln("Session reset", err)
+					delete(channelLineBufferMap, msg.From)
+					continue MainLoop
+				}
+				if len(lineBuf) == 0 {
+					delete(channelLineBufferMap, msg.From)
+				} else {
+					channelLineBufferMap[msg.From] = lineBuf
+				}
+				// feed all
+				for _, line := range lines {
+					msg.Data = line
+					appMsg := &msgspec.ApplicationMsg{
+						Name: msg.From,
+						Data: msg.Data,
+					}
+					writeCh <- append(appMsg.Encode(), '\n')
+				}
 			}
 
 		}
 	}
 	if pipeMode {
-		eofMsg := msgspec.Msg{
+		eofMsg := msgspec.RpipeMsg{
 			From:    myChnName,
 			To:      targetChnName,
 			Control: 2,
@@ -324,6 +369,10 @@ MainLoop:
 		eofMsgJson := eofMsg.Marshal()
 		log.Debugf("[PUB-%s] %s", eofMsg.To, eofMsgJson)
 		_, _ = rdb.Publish(ctx, eofMsg.To, eofMsgJson).Result()
+	} else {
+		for sid, buf := range channelLineBufferMap {
+			log.Debugf("Remove an uncompleted line buffer for sid '%s' : %s\n", sid, string(buf))
+		}
 	}
 	log.Debugln("Bye~")
 }

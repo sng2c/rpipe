@@ -50,7 +50,7 @@ func Test__spawn_read(t *testing.T) {
 		// TODO: Add test cases.
 		{name: "echo", args: args{
 			exec.Command("echo", "HELLO"),
-		}, want: []byte("HELLO"), wantErr: false},
+		}, want: []byte("HELLO\n"), wantErr: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -79,7 +79,7 @@ func Test__spawn_write(t *testing.T) {
 		// TODO: Add test cases.
 		{name: "nc pipe", args: args{
 			[]byte("WORLD\n"),
-		}, want: []byte("WORLD"), wantErr: false},
+		}, want: []byte("WORLD\n"), wantErr: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
