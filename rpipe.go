@@ -22,8 +22,16 @@ import (
 
 var ctx = context.Background()
 
-const VERSION = "0.2.1"
+const VERSION = "0.2.2"
 
+type Str string
+
+func (s Str) Or(defaultStr Str) Str {
+	if s == "" {
+		return defaultStr
+	}
+	return s
+}
 func main() {
 	log.SetFormatter(&easy.Formatter{
 		LogFormat: "%msg%",
@@ -149,47 +157,47 @@ func main() {
 			return
 		}
 	}
-	var localCh <-chan []byte
-	var readErrorCh <-chan []byte
-	var writeCh chan<- []byte
+	var fromLocalCh <-chan []byte
+	var fromLocalErrorCh <-chan []byte
+	var toLocalCh chan<- []byte
 
 	if spawnInfo != nil {
-		localCh = spawnInfo.Out
-		readErrorCh = spawnInfo.Err
-		writeCh = spawnInfo.In
+		fromLocalCh = spawnInfo.Out
+		fromLocalErrorCh = spawnInfo.Err
+		toLocalCh = spawnInfo.In
 	} else {
 		if pipeMode {
-			localCh = pipe.ReadLineBufferChannel(os.Stdin, blockSize, '\n')
-			readErrorCh = make(chan []byte)
-			writeCh = pipe.WriteLineChannel(os.Stdout)
+			fromLocalCh = pipe.ReadLineBufferChannel(os.Stdin, blockSize, '\n')
+			fromLocalErrorCh = make(chan []byte)
+			toLocalCh = pipe.WriteLineChannel(os.Stdout)
 		} else {
-			localCh = pipe.ReadLineChannel(os.Stdin)
-			readErrorCh = make(chan []byte)
-			writeCh = pipe.WriteLineChannel(os.Stdout)
+			fromLocalCh = pipe.ReadLineChannel(os.Stdin)
+			fromLocalErrorCh = make(chan []byte)
+			toLocalCh = pipe.WriteLineChannel(os.Stdout)
 		}
 	}
 
 	log.Printf("Rpipe V%s\n", VERSION)
 	log.Printf("  RPIPE_NAME      : %s\n", myChnName)
-	log.Printf("  RPIPE_TARGET    : %s\n", targetChnName)
+	log.Printf("  RPIPE_TARGET    : %s\n", Str(targetChnName).Or("<None>"))
 	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
 
 MainLoop:
 	for {
 		select {
-		case data, ok := <-readErrorCh: // CHILD -> REDIS
-			log.Debugln("case <-readErrorCh")
+		case data, ok := <-fromLocalErrorCh: // CHILD -> REDIS
+			log.Debugln("case <-fromLocalErrorCh")
 			if ok == false {
-				log.Debugf("readErrorCh is closed\n")
-				continue
+				log.Debugf("fromLocalErrorCh is closed\n")
+				break MainLoop
 			}
 
 			log.Infof("[ERR] %s", data)
 
-		case data, ok := <-localCh: // CHILD -> REDIS
-			log.Debugln("case <-localCh")
+		case data, ok := <-fromLocalCh: // CHILD -> REDIS
+			log.Debugln("case <-fromLocalCh")
 			if ok == false {
-				log.Debugf("localCh is closed\n")
+				log.Debugf("fromLocalCh is closed\n")
 				break MainLoop
 			}
 			appMsgs := []*msgspec.ApplicationMsg{}
@@ -327,7 +335,7 @@ MainLoop:
 
 			if pipeMode {
 				// pipemode : feed as-is
-				writeCh <- msg.Data
+				toLocalCh <- msg.Data
 			} else {
 				// non-pipemode : feed by line group by sessionId
 				// scanlines
@@ -355,7 +363,7 @@ MainLoop:
 						Name: msg.From,
 						Data: msg.Data,
 					}
-					writeCh <- append(appMsg.Encode(), '\n')
+					toLocalCh <- append(appMsg.Encode(), '\n')
 				}
 			}
 
