@@ -30,12 +30,18 @@ func ReadLineChannel(rd io.Reader) <-chan []byte {
 	recvch := make(chan []byte)
 	go func() {
 		defer close(recvch)
-		scanner := bufio.NewScanner(rd)
-		for scanner.Scan() {
-			var line = scanner.Bytes()
-			recvch <- append(line, '\n')
+		reader := bufio.NewReader(rd)
+
+		for {
+			line, err := reader.ReadBytes('\n')
+			if err != nil {
+				log.Warningln(err)
+				break
+			}
+			recvch <- line
 		}
 	}()
+
 	return recvch
 }
 

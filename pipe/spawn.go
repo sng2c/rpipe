@@ -28,7 +28,7 @@ func Spawn(ctx context.Context, cmd *exec.Cmd) (*SpawnedInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	errChan := ReadLineBufferChannel(errPipe, 120, '\n')
+	errChan := ReadLineChannel(errPipe)
 
 	// STDIN
 	inPipe, err := cmd.StdinPipe()
