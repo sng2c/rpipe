@@ -7,7 +7,7 @@ import (
 	"io"
 )
 
-func ScanLines(buf []byte, atEOF bool) ([][]byte, []byte, error) {
+func FeedLines(buf []byte, atEOF bool) ([][]byte, []byte, error) {
 	var lines [][]byte
 	var adv = -1
 	var token []byte

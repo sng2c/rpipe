@@ -42,16 +42,16 @@ func TestScanLines(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, got1, err := ScanLines(tt.args.buf, tt.args.atEOF)
+			got, got1, err := FeedLines(tt.args.buf, tt.args.atEOF)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ScanLines() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("FeedLines() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ScanLines() got = %v, want %v", got, tt.want)
+				t.Errorf("FeedLines() got = %v, want %v", got, tt.want)
 			}
 			if !reflect.DeepEqual(got1, tt.want1) {
-				t.Errorf("ScanLines() got1 = %v, want %v", got1, tt.want1)
+				t.Errorf("FeedLines() got1 = %v, want %v", got1, tt.want1)
 			}
 		})
 	}

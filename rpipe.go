@@ -345,7 +345,7 @@ MainLoop:
 				}
 				lineBuf = append(lineBuf, msg.Data...)
 				var lines [][]byte
-				lines, lineBuf, err = pipe.ScanLines(lineBuf, false)
+				lines, lineBuf, err = pipe.FeedLines(lineBuf, false)
 				if err != nil {
 					log.Warningln("Session reset", err)
 					delete(channelLineBufferMap, msg.From)
