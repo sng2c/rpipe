@@ -49,7 +49,7 @@ func ReadLineBufferChannel(rd io.Reader, blockSize int, delim byte) <-chan []byt
 	recvch := make(chan []byte)
 	go func() {
 		defer close(recvch)
-		full := []byte{}
+		var full []byte
 		for {
 			buf := make([]byte, blockSize)
 			hasRead, err := rd.Read(buf)

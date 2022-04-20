@@ -8,7 +8,6 @@ import (
 	"github.com/sng2c/rpipe/msgspec"
 	"github.com/sng2c/rpipe/pipe"
 	"github.com/sng2c/rpipe/secure"
-	easy "github.com/t-tomalak/logrus-easy-formatter"
 	"net/url"
 	"os"
 	"os/exec"
@@ -22,7 +21,7 @@ import (
 
 var ctx = context.Background()
 
-const VERSION = "0.2.3"
+const VERSION = "0.2.4"
 
 type Str string
 
@@ -33,10 +32,7 @@ func (s Str) Or(defaultStr Str) Str {
 	return s
 }
 func main() {
-	log.SetFormatter(&easy.Formatter{
-		LogFormat: "%msg%",
-	})
-
+	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
 	flag.Usage = func() {
 		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Rpipe V%s\n", VERSION)
 		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [flags] [COMMAND...]\n", os.Args[0])
@@ -117,6 +113,7 @@ func main() {
 			log.Fatalf("Invalid DB index '%s'", redisPath)
 		}
 	}
+
 	redisOptions := redis.Options{
 		Addr:     redisAddr.Host,
 		Username: redisUsername,
@@ -131,7 +128,9 @@ func main() {
 		log.Fatalln("Redis Ping Fail", err)
 	} else {
 		pubsub := rdb.Subscribe(ctx, myChnName)
-		defer pubsub.Close()
+		defer func(pubsub *redis.PubSub) {
+			_ = pubsub.Close()
+		}(pubsub)
 		remoteCh = pubsub.Channel()
 	}
 
@@ -177,10 +176,9 @@ func main() {
 		}
 	}
 
-	log.Printf("Rpipe V%s\n", VERSION)
-	log.Printf("  RPIPE_NAME      : %s\n", myChnName)
-	log.Printf("  RPIPE_TARGET    : %s\n", Str(targetChnName).Or("<None>"))
-	log.SetFormatter(&log.TextFormatter{FullTimestamp: true})
+	_, _ = os.Stderr.WriteString(fmt.Sprintf("Rpipe V%s\n", VERSION))
+	_, _ = os.Stderr.WriteString(fmt.Sprintf("  RPIPE_NAME      : %s\n", myChnName))
+	_, _ = os.Stderr.WriteString(fmt.Sprintf("  RPIPE_TARGET    : %s\n", Str(targetChnName).Or("<None>")))
 
 MainLoop:
 	for {
@@ -191,8 +189,7 @@ MainLoop:
 				log.Debugf("fromLocalErrorCh is closed\n")
 				break MainLoop
 			}
-
-			log.Infof("[ERR] %s", data)
+			_, _ = os.Stderr.Write(data)
 
 		case data, ok := <-fromLocalCh: // CHILD -> REDIS
 			log.Debugln("case <-fromLocalCh")
@@ -200,7 +197,7 @@ MainLoop:
 				log.Debugf("fromLocalCh is closed\n")
 				break MainLoop
 			}
-			appMsgs := []*msgspec.ApplicationMsg{}
+			var appMsgs []*msgspec.ApplicationMsg
 
 			if pipeMode {
 				appMsg := &msgspec.ApplicationMsg{
@@ -218,11 +215,11 @@ MainLoop:
 				// split
 				appData := appMsg.Data
 				for len(appData) >= blockSize {
-					appMsgs = append(appMsgs, &msgspec.ApplicationMsg{appMsg.Name, appData[:blockSize]})
+					appMsgs = append(appMsgs, &msgspec.ApplicationMsg{Name: appMsg.Name, Data: appData[:blockSize]})
 					appData = appData[blockSize:]
 				}
 				if len(appData) > 0 {
-					appMsgs = append(appMsgs, &msgspec.ApplicationMsg{appMsg.Name, appData})
+					appMsgs = append(appMsgs, &msgspec.ApplicationMsg{Name: appMsg.Name, Data: appData})
 				}
 			}
 			log.Debugln(appMsgs)
