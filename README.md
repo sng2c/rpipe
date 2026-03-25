@@ -64,7 +64,7 @@ Flags:
 Wraps a child process. The child's stdout is published to Redis; incoming Redis messages are fed to the child's stdin.
 
 ```bash
-rpipe -name alice -target bob -- ./my-program
+rpipe -name alice -target bob ./my-program
 ```
 
 The child process receives two environment variables:
@@ -117,7 +117,7 @@ Type `bob:hello` on node A — node B receives `alice:hello`.
 
 **Server (bob):**
 ```bash
-rpipe -name bob -target alice -- bash
+rpipe -name bob -target alice bash
 ```
 
 **Client (alice):**
