@@ -1,37 +1,167 @@
 # rpipe
 
-`rpipe` relays message between child process and redis pubsub channel.
+`rpipe` bridges a local process (or stdin/stdout) with Redis pub/sub channels, enabling distributed message passing between processes across machines — with end-to-end encryption.
 
-1. `rpipe` subscribes Redis channel named HOSTNAME.
-2. `rpipe` spawns child process as COMMAND.
-3. `rpipe` publishes child's STDIO outputs to Redis.
-4. `rpipe` passes messages from Redis into child's STDIN. 
-5. `rpipe` works with STDIN, STDOUT pipe.
-6. `rpipe` secures data with PKI encryption.
+## How it works
+
+```
+  Process A (machine 1)           Redis             Process B (machine 2)
+  ┌──────────────────────┐                        ┌──────────────────────┐
+  │  COMMAND stdout       │──► channel "B" ──────►│  COMMAND stdin        │
+  │  COMMAND stdin       │◄── channel "A" ◄───────│  COMMAND stdout       │
+  └──────────────────────┘                        └──────────────────────┘
+        rpipe -name A -target B cmd                     rpipe -name B -target A cmd
+```
+
+1. `rpipe` subscribes to a Redis channel with its own name (`-name`)
+2. Spawns (or acts as) a child process
+3. Publishes the child's stdout to the target Redis channel (`-target`)
+4. Feeds incoming Redis messages into the child's stdin
+
+Messages are encrypted with PKI (RSA key exchange + AES symmetric encryption) by default.
+
+## Installation
+
+### Download binary
+
+Download the latest binary from the [Releases](https://github.com/sng2c/rpipe/releases) page.
+
+Available platforms:
+- `linux/amd64`
+- `darwin/amd64`
+- `darwin/arm64` (Apple Silicon)
+- `windows/amd64`
+
+### Build from source
+
+Requires Go 1.24+.
+
+```bash
+git clone https://github.com/sng2c/rpipe.git
+cd rpipe
+go build -o rpipe .
+```
 
 ## Usage
 
-```bash
-$ ./rpipe -h
-Usage: ./rpipe [flags] [COMMAND...]
+```
+Usage: rpipe [flags] [COMMAND...]
+
 Flags:
-  -name string
-        My channel. Required
-  -nonsecure
-        Non-Secure messages.
-  -pipe
-        Type and show data only. And process EOF.
-  -redis string
-        Redis URL (default "redis://localhost:6379/0")
-  -target string
-        Target channel. No need to specify target channel in sending message.
-  -verbose
-        Verbose
+  -name,  -n  string   My channel name (required)
+  -target,-t  string   Target channel to send messages to
+  -redis, -r  string   Redis URL (default: redis://localhost:6379/0)
+  -pipe,  -p           Pipe mode: raw binary transfer with EOF propagation
+  -nonsecure           Disable encryption
+  -blocksize  int      Block size in bytes (default: 524288 = 512 KiB)
+  -verbose,-v          Enable debug logging
 ```
 
-### 
+## Modes
 
-## TO-DO
-* ~~Secure (PKI)~~
-* ~~STDIN/STDOUT processing~~
-* Documentation
+### Command mode
+
+Wraps a child process. The child's stdout is published to Redis; incoming Redis messages are fed to the child's stdin.
+
+```bash
+rpipe -name alice -target bob -- ./my-program
+```
+
+The child process receives two environment variables:
+- `RPIPE_NAME` — this node's channel name
+- `RPIPE_TARGET` — the target channel name
+
+### Stdin/Stdout mode (no COMMAND)
+
+Without a command, `rpipe` reads from stdin and writes to stdout.
+
+**Normal mode** — messages use `NAME:DATA` format:
+
+```bash
+# Send: write "target:data" lines to stdin
+echo "bob:hello" | rpipe -name alice -target bob
+
+# Receive: reads lines in "sender:data" format from stdout
+rpipe -name alice | while IFS= read -r line; do echo "got: $line"; done
+```
+
+**Pipe mode** (`-pipe`) — raw data, no format required:
+
+```bash
+# Send a file to remote
+cat file.tar.gz | rpipe -name alice -target bob -pipe
+
+# Receive on the other side
+rpipe -name bob -target alice -pipe > file.tar.gz
+```
+
+Pipe mode automatically sends an EOF signal when the input stream closes, terminating the receiver.
+
+## Examples
+
+### Two-node chat
+
+**Node A:**
+```bash
+rpipe -name alice -target bob
+```
+
+**Node B:**
+```bash
+rpipe -name bob -target alice
+```
+
+Type `bob:hello` on node A — node B receives `alice:hello`.
+
+### Remote command execution
+
+**Server (bob):**
+```bash
+rpipe -name bob -target alice -- bash
+```
+
+**Client (alice):**
+```bash
+rpipe -name alice -target bob
+# Type: bob:ls -la
+# Output: alice:total 12\n...
+```
+
+### File transfer
+
+**Receiver:**
+```bash
+rpipe -name receiver -target sender -pipe > received.tar.gz
+```
+
+**Sender:**
+```bash
+cat archive.tar.gz | rpipe -name sender -target receiver -pipe
+```
+
+### Custom Redis
+
+```bash
+rpipe -name alice -target bob -redis redis://user:password@myredis.host:6379/1
+```
+
+## Security
+
+By default, rpipe uses end-to-end encryption:
+
+1. Each node registers its RSA public key in Redis on startup
+2. A symmetric AES key is negotiated per channel pair
+3. All message payloads are AES-encrypted
+
+Use `-nonsecure` to disable encryption (e.g. for debugging or trusted networks).
+
+## Environment variables
+
+| Variable       | Set by | Description              |
+|----------------|--------|--------------------------|
+| `RPIPE_NAME`   | rpipe  | This node's channel name |
+| `RPIPE_TARGET` | rpipe  | The target channel name  |
+
+## License
+
+See [LICENSE](LICENSE).
