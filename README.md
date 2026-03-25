@@ -5,12 +5,12 @@
 ## How it works
 
 ```
-  Process A (machine 1)           Redis             Process B (machine 2)
-  ┌──────────────────────┐                        ┌──────────────────────┐
-  │  COMMAND stdout       │──► channel "B" ──────►│  COMMAND stdin        │
-  │  COMMAND stdin       │◄── channel "A" ◄───────│  COMMAND stdout       │
-  └──────────────────────┘                        └──────────────────────┘
-        rpipe -name A -target B cmd                     rpipe -name B -target A cmd
+  Process A (machine 1)                         Process B (machine 2)
+  ┌─────────────────────┐                       ┌─────────────────────┐
+  │   COMMAND stdout    │──► channel "B" ──────►│   COMMAND stdin     │
+  │   COMMAND stdin     │◄────── channel "A" ◄──│   COMMAND stdout    │
+  └─────────────────────┘                       └─────────────────────┘
+    rpipe -name A -target B cmd             rpipe -name B -target A cmd
 ```
 
 1. `rpipe` subscribes to a Redis channel with its own name (`-name`)
