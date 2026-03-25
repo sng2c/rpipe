@@ -21,7 +21,7 @@ import (
 
 var ctx = context.Background()
 
-const VERSION = "0.2.4"
+const VERSION = "1.0.0"
 
 type Str string
 
