@@ -51,13 +51,37 @@ Flags:
   -name,  -n  string   My channel name (required)
   -target,-t  string   Target channel to send messages to
   -redis, -r  string   Redis URL (default: redis://localhost:6379/0)
-  -pipe,  -p           Pipe mode: raw binary transfer with EOF propagation
+  -chat,  -c           Chat mode: structured NAME:DATA format messaging (default: pipe mode)
   -nonsecure           Disable encryption
   -blocksize  int      Block size in bytes (default: 524288 = 512 KiB)
   -verbose,-v          Enable debug logging
 ```
 
 ## Modes
+
+### Pipe mode (default)
+
+Raw binary transfer. No message format required. Automatically sends an EOF signal when the input stream closes, terminating the receiver.
+
+```bash
+# Send a file to remote
+cat file.tar.gz | rpipe -name alice -target bob
+
+# Receive on the other side
+rpipe -name bob -target alice > file.tar.gz
+```
+
+### Chat mode (`-chat` / `-c`)
+
+Messages use `NAME:DATA` format, grouped by sender.
+
+```bash
+# Send: write "target:data" lines to stdin
+echo "bob:hello" | rpipe -name alice -target bob -chat
+
+# Receive: reads lines in "sender:data" format from stdout
+rpipe -name alice -chat | while IFS= read -r line; do echo "got: $line"; done
+```
 
 ### Command mode
 
@@ -71,44 +95,30 @@ The child process receives two environment variables:
 - `RPIPE_NAME` — this node's channel name
 - `RPIPE_TARGET` — the target channel name
 
-### Stdin/Stdout mode (no COMMAND)
-
-Without a command, `rpipe` reads from stdin and writes to stdout.
-
-**Normal mode** — messages use `NAME:DATA` format:
-
-```bash
-# Send: write "target:data" lines to stdin
-echo "bob:hello" | rpipe -name alice -target bob
-
-# Receive: reads lines in "sender:data" format from stdout
-rpipe -name alice | while IFS= read -r line; do echo "got: $line"; done
-```
-
-**Pipe mode** (`-pipe`) — raw data, no format required:
-
-```bash
-# Send a file to remote
-cat file.tar.gz | rpipe -name alice -target bob -pipe
-
-# Receive on the other side
-rpipe -name bob -target alice -pipe > file.tar.gz
-```
-
-Pipe mode automatically sends an EOF signal when the input stream closes, terminating the receiver.
-
 ## Examples
+
+### File transfer
+
+**Receiver:**
+```bash
+rpipe -name receiver -target sender > received.tar.gz
+```
+
+**Sender:**
+```bash
+cat archive.tar.gz | rpipe -name sender -target receiver
+```
 
 ### Two-node chat
 
 **Node A:**
 ```bash
-rpipe -name alice -target bob
+rpipe -name alice -target bob -chat
 ```
 
 **Node B:**
 ```bash
-rpipe -name bob -target alice
+rpipe -name bob -target alice -chat
 ```
 
 Type `bob:hello` on node A — node B receives `alice:hello`.
@@ -117,26 +127,14 @@ Type `bob:hello` on node A — node B receives `alice:hello`.
 
 **Server (bob):**
 ```bash
-rpipe -name bob -target alice bash
+rpipe -name bob -target alice -chat bash
 ```
 
 **Client (alice):**
 ```bash
-rpipe -name alice -target bob
+rpipe -name alice -target bob -chat
 # Type: bob:ls -la
 # Output: alice:total 12\n...
-```
-
-### File transfer
-
-**Receiver:**
-```bash
-rpipe -name receiver -target sender -pipe > received.tar.gz
-```
-
-**Sender:**
-```bash
-cat archive.tar.gz | rpipe -name sender -target receiver -pipe
 ```
 
 ### Custom Redis
