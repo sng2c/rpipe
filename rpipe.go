@@ -21,7 +21,7 @@ import (
 
 var ctx = context.Background()
 
-const VERSION = "0.2.4"
+const VERSION = "1.0.0"
 
 type Str string
 
@@ -45,7 +45,7 @@ func main() {
 	var targetChnName string
 	var verbose bool
 	var nonsecure bool
-	var pipeMode bool
+	var chatMode bool
 	var blockSize int
 	defaultBlockSize := 512 * 1024
 	channelLineBufferMap := make(map[string][]byte)
@@ -59,10 +59,12 @@ func main() {
 	flag.StringVar(&targetChnName, "target", targetChnName, "Target channel. No need to specify target channel in sending message.")
 	flag.StringVar(&targetChnName, "t", targetChnName, "Target channel. No need to specify target channel in sending message.")
 	flag.BoolVar(&nonsecure, "nonsecure", false, "Non-Secure rpipe.")
-	flag.BoolVar(&pipeMode, "pipe", false, "Type and show data only. And process EOF.")
-	flag.BoolVar(&pipeMode, "p", false, "Type and show data only. And process EOF.")
+	flag.BoolVar(&chatMode, "chat", false, "Chat mode: structured NAME:DATA format messaging.")
+	flag.BoolVar(&chatMode, "c", false, "Chat mode: structured NAME:DATA format messaging.")
 	flag.IntVar(&blockSize, "blocksize", defaultBlockSize, "blocksize in bytes")
 	flag.Parse()
+
+	pipeMode := !chatMode
 
 	if verbose {
 		log.SetLevel(log.DebugLevel)
