@@ -70,6 +70,9 @@ Flags:
   -v	Verbose
   -verbose
     	Verbose
+Environment variables set for COMMAND:
+  RPIPE_NAME    This node's channel name (-name)
+  RPIPE_TARGET  The target channel name (-target)
 ```
 
 ## 모드
