@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "input=$(cat); file=$(echo \"$input\" | jq -r '.tool_input.file_path // .tool_response.filePath // empty'); if echo \"$file\" | grep -q 'rpipe\\.go$'; then version=$(grep 'const VERSION' \"$file\" 2>/dev/null | grep -oP '\"[^\"]+\"'); if [ -n \"$version\" ]; then echo \"{\\\"systemMessage\\\": \\\"VERSION changed to $version — remember to update README.md and README.ko.md if not already done.\\\"}\"; fi; fi"
+            "command": "input=$(cat); file=$(echo \"$input\" | jq -r '.tool_input.file_path // .tool_response.filePath // empty'); if echo \"$file\" | grep -q 'rpipe\\.go$'; then version=$(grep 'const VERSION' \"$file\" 2>/dev/null | grep -oP '\"[^\"]+\"'); if [ -n \"$version\" ]; then cd /home/user/rpipe && go build -o rpipe . 2>/dev/null && usage=$(./rpipe -h 2>&1 | sed 's|^Usage: \\./rpipe|Usage: rpipe|'); python3 -c \"\nimport re, sys\ncontent = open('README.md').read()\nnew_usage = sys.argv[1]\npattern = r'(## Usage\\n\\n\\x60\\x60\\x60\\n).*?(\\n\\x60\\x60\\x60)'\nresult = re.sub(pattern, r'\\\\1' + re.escape(new_usage) + r'\\\\2', content, flags=re.DOTALL)\nopen('README.md', 'w').write(result)\n\" \"$usage\" 2>/dev/null; echo \"{\\\"systemMessage\\\": \\\"VERSION is $version — README.md usage block updated. Remember to retranslate README.ko.md from README.md.\\\"}\"; fi; fi"
           }
         ]
       }

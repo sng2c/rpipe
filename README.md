@@ -45,7 +45,7 @@ go build -o rpipe .
 ## Usage
 
 ```
-Rpipe V1.0.5
+Rpipe V1.1.0
 Usage: rpipe [flags] [COMMAND...]
 Flags:
   -blocksize int
