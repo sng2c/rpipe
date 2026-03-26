@@ -16,9 +16,12 @@ import (
 	"github.com/sng2c/rpipe/msgspec"
 	"io"
 	"strings"
+	"time"
 )
 
 var ExpireError = errors.New("SymKey has expired")
+
+const symkeyTTL = 1 * time.Hour
 
 type Cryptor struct {
 	PrivateKey *rsa.PrivateKey
@@ -157,7 +160,7 @@ func (c *Cryptor) RegisterNewOutboundSymkey(ctx context.Context, msg *msgspec.Rp
 	if err != nil {
 		return nil, err
 	}
-	_, err = c.rdb.Set(ctx, symkeyFullname, _symkeyStr, 0).Result()
+	_, err = c.rdb.Set(ctx, symkeyFullname, _symkeyStr, symkeyTTL).Result()
 	if err != nil {
 		return nil, err
 	}
