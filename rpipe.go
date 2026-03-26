@@ -65,8 +65,8 @@ func main() {
 	flag.BoolVar(&verbose, "v", false, "Verbose")
 	flag.StringVar(&redisURL, "redis", defaultRedisURL, "Redis URL (env: RPIPE_REDIS, default: redis://localhost:6379/0)")
 	flag.StringVar(&redisURL, "r", defaultRedisURL, "Redis URL (env: RPIPE_REDIS, default: redis://localhost:6379/0)")
-	flag.StringVar(&myChnName, "name", defaultName, "My channel name (env: RPIPE_NAME). Required")
-	flag.StringVar(&myChnName, "n", defaultName, "My channel name (env: RPIPE_NAME). Required")
+	flag.StringVar(&myChnName, "name", defaultName, "My channel name (env: RPIPE_NAME)")
+	flag.StringVar(&myChnName, "n", defaultName, "My channel name (env: RPIPE_NAME)")
 	flag.StringVar(&targetChnName, "target", defaultTarget, "Target channel (env: RPIPE_TARGET).")
 	flag.StringVar(&targetChnName, "t", defaultTarget, "Target channel (env: RPIPE_TARGET).")
 	flag.BoolVar(&nonsecure, "nonsecure", false, "Non-Secure rpipe.")
@@ -85,7 +85,7 @@ func main() {
 
 	if myChnName == "" {
 		flag.Usage()
-		log.Fatalln("-name flag is required. Use -name <channel> to set your channel name")
+		log.Fatalln("-name flag or RPIPE_NAME env var is required")
 	}
 
 	// blockSize in KiB
