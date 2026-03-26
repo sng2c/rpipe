@@ -38,10 +38,11 @@ func main() {
 		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [flags] [COMMAND...]\n", os.Args[0])
 		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Flags:\n")
 		flag.PrintDefaults()
-		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Environment variables:\n")
+		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Environment variables (input):\n")
 		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "  RPIPE_REDIS   Redis URL, overridden by -redis flag\n")
-		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "  RPIPE_NAME    Set for COMMAND: this node's channel name\n")
-		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "  RPIPE_TARGET  Set for COMMAND: the target channel name\n")
+		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Environment variables passed to COMMAND:\n")
+		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "  RPIPE_NAME    This node's channel name (-name)\n")
+		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "  RPIPE_TARGET  The target channel name (-target)\n")
 	}
 
 	var redisURL string
