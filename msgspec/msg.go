@@ -47,7 +47,7 @@ type ApplicationMsg struct {
 func NewApplicationMsg(s []byte) (*ApplicationMsg, error) {
 	chunks := bytes.SplitN(s, []byte{':'}, 2)
 	if len(chunks) != 2 {
-		return nil, errors.New(fmt.Sprintf("Invalid ApplicationMsg format : %s", s))
+		return nil, errors.New(fmt.Sprintf("Invalid ApplicationMsg format: %s", s))
 	}
 
 	msg := ApplicationMsg{

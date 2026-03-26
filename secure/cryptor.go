@@ -73,7 +73,7 @@ func (c *Cryptor) RegisterPubkey(ctx context.Context, chnName string) error {
 		for _, k := range keys {
 			_, err := c.rdb.Del(ctx, k).Result()
 			if err != nil {
-				log.Warningln("Delete SYMKEYS "+k, err)
+				log.Warningln("Failed to delete SYMKEYS: "+k, err)
 				return err
 			}
 			ks := strings.SplitN(k, ":", 4)
@@ -103,7 +103,7 @@ func (c *Cryptor) RegisterPubkey(ctx context.Context, chnName string) error {
 		log.Debugf("[PUB-%s] %s", targetChnName, resetMsgJson)
 		_, err := c.rdb.Publish(ctx, targetChnName, resetMsgJson).Result()
 		if err != nil {
-			log.Warningln("Publish Reset SYMKEYS to "+targetChnName, err)
+			log.Warningln("Failed to publish SYMKEYS reset to "+targetChnName, err)
 			return err
 		}
 	}

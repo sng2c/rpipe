@@ -73,14 +73,21 @@ rpipe -name bob -target alice > file.tar.gz
 
 ### Chat mode (`-chat` / `-c`)
 
-Messages use `NAME:DATA` format, grouped by sender.
+Send format: `TARGET:message` — delivers to the TARGET channel.
+When `-target` is set, use `:message` (colon prefix only) and the target is filled automatically.
+Received messages are printed to stdout as `SENDER:message`.
 
 ```bash
-# Send: write "target:data" lines to stdin
-echo "bob:hello" | rpipe -name alice -target bob -chat
+# One-to-one chat: set -target and prefix messages with :
+rpipe -name alice -target bob -chat
+# Input:  :hello       → sent to bob
+# Output: bob:hi       ← message from bob
 
-# Receive: reads lines in "sender:data" format from stdout
-rpipe -name alice -chat | while IFS= read -r line; do echo "got: $line"; done
+# Multi-channel: specify target per message
+rpipe -name alice -chat
+# Input:  bob:hello    → sent to bob
+# Input:  carol:hi     → sent to carol
+# Output: bob:hey      ← message from bob
 ```
 
 ### Command mode
@@ -121,7 +128,7 @@ rpipe -name alice -target bob -chat
 rpipe -name bob -target alice -chat
 ```
 
-Type `bob:hello` on node A — node B receives `alice:hello`.
+Type `:hello` on node A — node B receives `alice:hello`.
 
 ### Remote command execution
 

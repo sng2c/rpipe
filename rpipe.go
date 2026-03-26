@@ -21,7 +21,7 @@ import (
 
 var ctx = context.Background()
 
-const VERSION = "1.0.0"
+const VERSION = "1.0.1"
 
 type Str string
 
@@ -74,7 +74,7 @@ func main() {
 
 	if myChnName == "" {
 		flag.Usage()
-		log.Fatalln("-name flag is required")
+		log.Fatalln("-name flag is required. Use -name <channel> to set your channel name")
 	}
 
 	// blockSize in KiB
@@ -91,14 +91,14 @@ func main() {
 	// check pipemode
 	if pipeMode {
 		if targetChnName == "" {
-			log.Fatalln("-name and -target flag is required")
+			log.Fatalln("-name and -target flags are required in pipe mode")
 		}
 	}
 
 	// check redis connection
 	redisAddr, err := url.Parse(redisURL)
 	if err != nil {
-		log.Fatalf("Invalid REDIS url")
+		log.Fatalf("Invalid Redis URL. Expected format: redis://[user:password@]host:port/db")
 	}
 	redisUsername := redisAddr.User.Username()
 	redisPassword, _ := redisAddr.User.Password()
@@ -112,7 +112,7 @@ func main() {
 	if len(redisPath) > 0 {
 		redisDB, err = strconv.Atoi(redisPath)
 		if err != nil {
-			log.Fatalf("Invalid DB index '%s'", redisPath)
+			log.Fatalf("Invalid Redis DB index '%s': must be a number", redisPath)
 		}
 	}
 
@@ -127,7 +127,7 @@ func main() {
 	rdb = redis.NewClient(&redisOptions)
 	_, err = rdb.Ping(ctx).Result()
 	if err != nil {
-		log.Fatalln("Redis Ping Fail", err)
+		log.Fatalln("Redis ping failed: check if Redis is running and the URL is correct", err)
 	} else {
 		pubsub := rdb.Subscribe(ctx, myChnName)
 		defer func(pubsub *redis.PubSub) {
@@ -139,7 +139,7 @@ func main() {
 	var cryptor = secure.NewCryptor(rdb)
 	err = cryptor.RegisterPubkey(ctx, myChnName)
 	if err != nil {
-		log.Fatalln("Pubkey Register Fail", err)
+		log.Fatalln("Failed to register pubkey: check Redis connection", err)
 	}
 
 	// signal notification
@@ -154,7 +154,7 @@ func main() {
 		cmd.Env = append(cmd.Env, "RPIPE_NAME="+myChnName, "RPIPE_TARGET="+targetChnName)
 		spawnInfo, err = pipe.Spawn(ctx, cmd)
 		if err != nil {
-			log.Fatalln("Spawn Error", err)
+			log.Fatalln("Failed to spawn process: check if the command exists and is executable", err)
 			return
 		}
 	}
@@ -211,7 +211,7 @@ MainLoop:
 				log.Debugln(string(data))
 				appMsg, err := msgspec.NewApplicationMsg(data)
 				if err != nil {
-					log.Warningln("Unmarshal Error from Local", err)
+					log.Warningln("Failed to parse message: expected TARGET:message format", err)
 					continue MainLoop
 				}
 				// split
@@ -239,7 +239,7 @@ MainLoop:
 				}
 
 				if msg.To == "" {
-					log.Warningln("No target in Msg")
+					log.Warningln("No target in message: use TARGET:message format or specify -target flag")
 					continue
 				}
 
@@ -251,17 +251,17 @@ MainLoop:
 							log.Debugln("Register New Symkey", msg.SymkeyName())
 							symKey, err = cryptor.RegisterNewOutboundSymkey(ctx, msg)
 							if err != nil {
-								log.Warningln("Register New Symkey Fail to Remote", err)
+								log.Warningln("Failed to register new Symkey to remote", err)
 								continue MainLoop
 							}
 						} else {
-							log.Warningln("Fetch Symkey Fail to Remote", err)
+							log.Warningln("Failed to fetch Symkey for remote", err)
 							continue MainLoop
 						}
 					}
 					cryptedData, err := secure.EncryptMessage(symKey, msg.Data)
 					if err != nil {
-						log.Warningln("EncryptMessageFail Fail to Remote", err)
+						log.Warningln("Failed to encrypt message", err)
 						continue MainLoop
 					}
 					msg.Data = cryptedData
@@ -283,12 +283,12 @@ MainLoop:
 
 			msg, err := msgspec.NewMsgFromBytes([]byte(payload))
 			if err != nil {
-				log.Warningln("Unmarshal Error from Remote", err)
+				log.Warningln("Failed to parse message from remote", err)
 				continue MainLoop
 			}
 			if pipeMode {
 				if msg.From != targetChnName {
-					log.Warningf("A message from %s is not targeted.", msg.From)
+					log.Warningf("Ignoring message from %s: not from target", msg.From)
 					continue MainLoop
 				}
 			}
@@ -299,13 +299,13 @@ MainLoop:
 			if msg.Control == 1 {
 				err := cryptor.ResetInboundSymkey(ctx, msg)
 				if err != nil {
-					log.Warningln("ResetInboundSymkey", err)
+					log.Warningln("Failed to reset inbound Symkey", err)
 				}
 				continue MainLoop
 			}
 			if msg.Control == 2 {
 				if pipeMode {
-					log.Debugln("EOF received on pipemode", err)
+					log.Debugln("EOF received in pipe mode", err)
 					break MainLoop
 				}
 				continue MainLoop
@@ -314,18 +314,18 @@ MainLoop:
 			// process
 
 			if msg.From == "" {
-				log.Warningln("No 'From' in message from Remote", err)
+				log.Warningln("Missing 'From' in message from remote", err)
 			}
 			if msg.Secured {
 				// Decrypt with symmetric key
 				symKey, err := cryptor.FetchSymkey(ctx, msg)
 				if err != nil {
-					log.Warningln("Fetch Symkey Fail from Remote", err)
+					log.Warningln("Failed to fetch Symkey from remote", err)
 					continue MainLoop
 				}
 				decryptedData, err := secure.DecryptMessage(symKey, msg.Data)
 				if err != nil {
-					log.Warningln("Decrypt Fail from Remote", err)
+					log.Warningln("Failed to decrypt message from remote", err)
 					continue MainLoop
 				}
 				msg.Data = decryptedData
@@ -379,7 +379,7 @@ MainLoop:
 		_, _ = rdb.Publish(ctx, eofMsg.To, eofMsgJson).Result()
 	} else {
 		for sid, buf := range channelLineBufferMap {
-			log.Debugf("Remove an uncompleted line buffer for sid '%s' : %s\n", sid, string(buf))
+			log.Debugf("Dropping incomplete line buffer for sid '%s': %s\n", sid, string(buf))
 		}
 	}
 	log.Debugln("Bye~")
