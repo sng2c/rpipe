@@ -38,11 +38,10 @@ func main() {
 		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [flags] [COMMAND...]\n", os.Args[0])
 		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Flags:\n")
 		flag.PrintDefaults()
-		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Environment variables (input):\n")
-		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "  RPIPE_REDIS   Redis URL, overridden by -redis flag\n")
-		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Environment variables passed to COMMAND:\n")
-		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "  RPIPE_NAME    This node's channel name (-name)\n")
-		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "  RPIPE_TARGET  The target channel name (-target)\n")
+		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Environment variables:\n")
+		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "  RPIPE_REDIS   Corresponds to -redis flag\n")
+		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "  RPIPE_NAME    Corresponds to -name flag\n")
+		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "  RPIPE_TARGET  Corresponds to -target flag\n")
 	}
 
 	var redisURL string
@@ -59,15 +58,17 @@ func main() {
 	if defaultRedisURL == "" {
 		defaultRedisURL = "redis://localhost:6379/0"
 	}
+	defaultName := os.Getenv("RPIPE_NAME")
+	defaultTarget := os.Getenv("RPIPE_TARGET")
 
 	flag.BoolVar(&verbose, "verbose", false, "Verbose")
 	flag.BoolVar(&verbose, "v", false, "Verbose")
 	flag.StringVar(&redisURL, "redis", defaultRedisURL, "Redis URL (env: RPIPE_REDIS, default: redis://localhost:6379/0)")
 	flag.StringVar(&redisURL, "r", defaultRedisURL, "Redis URL (env: RPIPE_REDIS, default: redis://localhost:6379/0)")
-	flag.StringVar(&myChnName, "name", "", "My channel. Required")
-	flag.StringVar(&myChnName, "n", "", "My channel. Required")
-	flag.StringVar(&targetChnName, "target", targetChnName, "Target channel. No need to specify target channel in sending message.")
-	flag.StringVar(&targetChnName, "t", targetChnName, "Target channel. No need to specify target channel in sending message.")
+	flag.StringVar(&myChnName, "name", defaultName, "My channel name (env: RPIPE_NAME). Required")
+	flag.StringVar(&myChnName, "n", defaultName, "My channel name (env: RPIPE_NAME). Required")
+	flag.StringVar(&targetChnName, "target", defaultTarget, "Target channel (env: RPIPE_TARGET).")
+	flag.StringVar(&targetChnName, "t", defaultTarget, "Target channel (env: RPIPE_TARGET).")
 	flag.BoolVar(&nonsecure, "nonsecure", false, "Non-Secure rpipe.")
 	flag.BoolVar(&chatMode, "chat", false, "Chat mode: send as 'TARGET<message' (or '<message' if -target set), receive as 'SENDER>message'.")
 	flag.BoolVar(&chatMode, "c", false, "Chat mode: send as 'TARGET<message' (or '<message' if -target set), receive as 'SENDER>message'.")

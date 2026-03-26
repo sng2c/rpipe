@@ -70,11 +70,10 @@ Flags:
   -v	Verbose
   -verbose
     	Verbose
-Environment variables (input):
-  RPIPE_REDIS   Redis URL, overridden by -redis flag
-Environment variables passed to COMMAND:
-  RPIPE_NAME    This node's channel name (-name)
-  RPIPE_TARGET  The target channel name (-target)
+Environment variables:
+  RPIPE_REDIS   Corresponds to -redis flag
+  RPIPE_NAME    Corresponds to -name flag
+  RPIPE_TARGET  Corresponds to -target flag
 ```
 
 ## Modes
