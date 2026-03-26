@@ -45,16 +45,31 @@ go build -o rpipe .
 ## 사용법
 
 ```
+Rpipe V1.0.2
 Usage: rpipe [flags] [COMMAND...]
-
 Flags:
-  -name,  -n  string   내 채널 이름 (필수)
-  -target,-t  string   메시지를 보낼 대상 채널
-  -redis, -r  string   Redis URL (기본값: redis://localhost:6379/0)
-  -chat,  -c           채팅 모드: NAME:DATA 형식 메시징 (기본값: 파이프 모드)
-  -nonsecure           암호화 비활성화
-  -blocksize  int      블록 크기 (바이트, 기본값: 524288 = 512 KiB)
-  -verbose,-v          디버그 로그 출력
+  -blocksize int
+    	blocksize in bytes (default 524288)
+  -c	Chat mode: send as 'TARGET<message' (or '<message' if -target set), receive as 'SENDER>message'.
+  -chat
+    	Chat mode: send as 'TARGET<message' (or '<message' if -target set), receive as 'SENDER>message'.
+  -n string
+    	My channel. Required
+  -name string
+    	My channel. Required
+  -nonsecure
+    	Non-Secure rpipe.
+  -r string
+    	Redis URL (default "redis://localhost:6379/0")
+  -redis string
+    	Redis URL (default "redis://localhost:6379/0")
+  -t string
+    	Target channel. No need to specify target channel in sending message.
+  -target string
+    	Target channel. No need to specify target channel in sending message.
+  -v	Verbose
+  -verbose
+    	Verbose
 ```
 
 ## 모드

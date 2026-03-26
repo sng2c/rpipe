@@ -59,8 +59,8 @@ func main() {
 	flag.StringVar(&targetChnName, "target", targetChnName, "Target channel. No need to specify target channel in sending message.")
 	flag.StringVar(&targetChnName, "t", targetChnName, "Target channel. No need to specify target channel in sending message.")
 	flag.BoolVar(&nonsecure, "nonsecure", false, "Non-Secure rpipe.")
-	flag.BoolVar(&chatMode, "chat", false, "Chat mode: structured NAME:DATA format messaging.")
-	flag.BoolVar(&chatMode, "c", false, "Chat mode: structured NAME:DATA format messaging.")
+	flag.BoolVar(&chatMode, "chat", false, "Chat mode: send as 'TARGET<message' (or '<message' if -target set), receive as 'SENDER>message'.")
+	flag.BoolVar(&chatMode, "c", false, "Chat mode: send as 'TARGET<message' (or '<message' if -target set), receive as 'SENDER>message'.")
 	flag.IntVar(&blockSize, "blocksize", defaultBlockSize, "blocksize in bytes")
 	flag.Parse()
 

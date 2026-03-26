@@ -45,16 +45,31 @@ go build -o rpipe .
 ## Usage
 
 ```
+Rpipe V1.0.2
 Usage: rpipe [flags] [COMMAND...]
-
 Flags:
-  -name,  -n  string   My channel name (required)
-  -target,-t  string   Target channel to send messages to
-  -redis, -r  string   Redis URL (default: redis://localhost:6379/0)
-  -chat,  -c           Chat mode: structured NAME:DATA format messaging (default: pipe mode)
-  -nonsecure           Disable encryption
-  -blocksize  int      Block size in bytes (default: 524288 = 512 KiB)
-  -verbose,-v          Enable debug logging
+  -blocksize int
+    	blocksize in bytes (default 524288)
+  -c	Chat mode: send as 'TARGET<message' (or '<message' if -target set), receive as 'SENDER>message'.
+  -chat
+    	Chat mode: send as 'TARGET<message' (or '<message' if -target set), receive as 'SENDER>message'.
+  -n string
+    	My channel. Required
+  -name string
+    	My channel. Required
+  -nonsecure
+    	Non-Secure rpipe.
+  -r string
+    	Redis URL (default "redis://localhost:6379/0")
+  -redis string
+    	Redis URL (default "redis://localhost:6379/0")
+  -t string
+    	Target channel. No need to specify target channel in sending message.
+  -target string
+    	Target channel. No need to specify target channel in sending message.
+  -v	Verbose
+  -verbose
+    	Verbose
 ```
 
 ## Modes
