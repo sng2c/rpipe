@@ -6,6 +6,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
@@ -152,7 +153,7 @@ func (c *Cryptor) RegisterNewOutboundSymkey(ctx context.Context, msg *msgspec.Rp
 	if err != nil {
 		return nil, err
 	}
-	newKey := randStringBytes(16)
+	newKey := randStringBytes(32)
 	_symkeyStr, err := EncryptPKI(pubkey, newKey)
 	if err != nil {
 		return nil, err
@@ -169,48 +170,44 @@ func (c *Cryptor) RegisterNewOutboundSymkey(ctx context.Context, msg *msgspec.Rp
 }
 
 func EncryptMessage(symKey *SymKey, message []byte) ([]byte, error) {
-	byteMsg := message
 	block, err := aes.NewCipher(symKey.Key)
 	if err != nil {
-		return nil, fmt.Errorf("could not create new cipher: %v", err)
+		return nil, fmt.Errorf("could not create cipher: %v", err)
 	}
-
-	cipherText := make([]byte, aes.BlockSize+len(byteMsg))
-	iv := cipherText[:aes.BlockSize]
-	if _, err = io.ReadFull(rand.Reader, iv); err != nil {
-		return nil, fmt.Errorf("could not encrypt: %v", err)
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, fmt.Errorf("could not create GCM: %v", err)
 	}
-
-	stream := cipher.NewCFBEncrypter(block, iv)
-	stream.XORKeyStream(cipherText[aes.BlockSize:], byteMsg)
-
-	return cipherText, nil
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
+		return nil, fmt.Errorf("could not generate nonce: %v", err)
+	}
+	return gcm.Seal(nonce, nonce, message, nil), nil
 }
+
 func DecryptMessage(symKey *SymKey, cipherText []byte) ([]byte, error) {
 	block, err := aes.NewCipher(symKey.Key)
 	if err != nil {
-		return nil, fmt.Errorf("could not create new cipher: %v", err)
+		return nil, fmt.Errorf("could not create cipher: %v", err)
 	}
-
-	if len(cipherText) < aes.BlockSize {
-		return nil, fmt.Errorf("invalid ciphertext block size")
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, fmt.Errorf("could not create GCM: %v", err)
 	}
-
-	iv := cipherText[:aes.BlockSize]
-	cipherText = cipherText[aes.BlockSize:]
-
-	stream := cipher.NewCFBDecrypter(block, iv)
-	stream.XORKeyStream(cipherText, cipherText)
-
-	return cipherText, nil
+	nonceSize := gcm.NonceSize()
+	if len(cipherText) < nonceSize {
+		return nil, fmt.Errorf("ciphertext too short")
+	}
+	nonce, cipherText := cipherText[:nonceSize], cipherText[nonceSize:]
+	plaintext, err := gcm.Open(nil, nonce, cipherText, nil)
+	if err != nil {
+		return nil, fmt.Errorf("could not decrypt: %v", err)
+	}
+	return plaintext, nil
 }
 
 func EncryptPKI(publicKey *rsa.PublicKey, s []byte) (string, error) {
-	ciphertext, err := rsa.EncryptPKCS1v15( // 평문을 공개 키로 암호화
-		rand.Reader,
-		publicKey, // 공개키
-		s,
-	)
+	ciphertext, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, publicKey, s, nil)
 	if err != nil {
 		return "", err
 	}
@@ -218,11 +215,7 @@ func EncryptPKI(publicKey *rsa.PublicKey, s []byte) (string, error) {
 }
 func DecryptPKI(privateKey *rsa.PrivateKey, s string) ([]byte, error) {
 	plain, _ := base64.StdEncoding.DecodeString(s)
-	decrypted, err := rsa.DecryptPKCS1v15( // 암호화된 데이터를 개인 키로 복호화
-		rand.Reader,
-		privateKey, // 개인키
-		plain,
-	)
+	decrypted, err := rsa.DecryptOAEP(sha256.New(), rand.Reader, privateKey, plain, nil)
 	if err != nil {
 		return nil, err
 	}
