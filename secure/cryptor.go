@@ -121,6 +121,10 @@ func (c *Cryptor) FetchTargetPubkey(ctx context.Context, msg *msgspec.RpipeMsg) 
 	return DecodePubkey(result), nil
 }
 
+func (c *Cryptor) InvalidateSymkey(msg *msgspec.RpipeMsg) {
+	delete(c.cache, msg.SymkeyName())
+}
+
 func (c *Cryptor) FetchSymkey(ctx context.Context, msg *msgspec.RpipeMsg) (*SymKey, error) {
 	symKey, ok := c.cache[msg.SymkeyName()]
 	if !ok {
@@ -147,6 +151,17 @@ func randStringBytes(n int) []byte {
 		return nil
 	}
 	return key
+}
+
+// RotateOutboundSymkey notifies the receiver to reset its inbound cache (Control=1),
+// then registers a new outbound symkey. Use this when a symkey expires.
+func (c *Cryptor) RotateOutboundSymkey(ctx context.Context, msg *msgspec.RpipeMsg) (*SymKey, error) {
+	resetMsg := msgspec.RpipeMsg{From: msg.From, To: msg.To, Control: 1}
+	_, err := c.rdb.Publish(ctx, msg.To, resetMsg.Marshal()).Result()
+	if err != nil {
+		return nil, err
+	}
+	return c.RegisterNewOutboundSymkey(ctx, msg)
 }
 
 func (c *Cryptor) RegisterNewOutboundSymkey(ctx context.Context, msg *msgspec.RpipeMsg) (*SymKey, error) {

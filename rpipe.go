@@ -255,11 +255,10 @@ MainLoop:
 					symKey, err := cryptor.FetchSymkey(ctx, msg)
 					if err != nil {
 						if err == secure.ExpireError {
-							// new symkey register
-							log.Debugln("Register New Symkey", msg.SymkeyName())
-							symKey, err = cryptor.RegisterNewOutboundSymkey(ctx, msg)
+							log.Debugln("Rotating Symkey", msg.SymkeyName())
+							symKey, err = cryptor.RotateOutboundSymkey(ctx, msg)
 							if err != nil {
-								log.Warningln("Failed to register new Symkey to remote", err)
+								log.Warningln("Failed to rotate Symkey to remote", err)
 								continue MainLoop
 							}
 						} else {
@@ -333,8 +332,16 @@ MainLoop:
 				}
 				decryptedData, err := secure.DecryptMessage(symKey, msg.Data)
 				if err != nil {
-					log.Warningln("Failed to decrypt message from remote", err)
-					continue MainLoop
+					log.Warningln("Decrypt failed, retrying with fresh symkey", err)
+					cryptor.InvalidateSymkey(msg)
+					symKey, err = cryptor.FetchSymkey(ctx, msg)
+					if err == nil {
+						decryptedData, err = secure.DecryptMessage(symKey, msg.Data)
+					}
+					if err != nil {
+						log.Warningln("Failed to decrypt after retry, dropping message", err)
+						continue MainLoop
+					}
 				}
 				msg.Data = decryptedData
 				msg.Secured = false
