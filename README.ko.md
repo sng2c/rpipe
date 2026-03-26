@@ -13,10 +13,10 @@
       rpipe -name A -target B cmd                   rpipe -name B -target A cmd
 ```
 
-1. `rpipe`는 `-name`으로 지정한 이름의 Redis 채널을 구독합니다.
-2. 자식 프로세스를 실행하거나, stdin/stdout으로 직접 동작합니다.
-3. 자식 프로세스의 stdout을 `-target` Redis 채널로 publish합니다.
-4. Redis에서 수신한 메시지를 자식 프로세스의 stdin으로 전달합니다.
+1. `rpipe`는 자신의 이름(`-name`)으로 Redis 채널을 구독합니다
+2. 자식 프로세스를 실행하거나 stdin/stdout으로 동작합니다
+3. 자식 프로세스의 stdout을 대상 Redis 채널(`-target`)에 발행합니다
+4. Redis로 수신된 메시지를 자식 프로세스의 stdin으로 전달합니다
 
 메시지는 기본적으로 PKI(RSA 키 교환 + AES 대칭 암호화)로 암호화됩니다.
 
@@ -34,7 +34,7 @@
 
 ### 소스 빌드
 
-Go 1.24 이상 필요.
+Go 1.24 이상이 필요합니다.
 
 ```bash
 git clone https://github.com/sng2c/rpipe.git
@@ -45,7 +45,7 @@ go build -o rpipe .
 ## 사용법
 
 ```
-Rpipe V1.0.5
+Rpipe V1.1.0
 Usage: rpipe [flags] [COMMAND...]
 Flags:
   -blocksize int
@@ -80,74 +80,74 @@ Environment variables:
 
 ### 파이프 모드 (기본값)
 
-원시 바이너리 전송. 메시지 형식 불필요. 입력 스트림이 닫히면 자동으로 EOF 신호를 전송해 수신 측을 종료합니다.
+원시 바이너리 전송. 메시지 형식이 필요 없습니다. 입력 스트림이 닫히면 자동으로 EOF 신호를 보내 수신자를 종료합니다.
 
 ```bash
 # 파일 전송
 cat file.tar.gz | rpipe -name alice -target bob
 
-# 수신 측
+# 반대편에서 수신
 rpipe -name bob -target alice > file.tar.gz
 ```
 
 ### 채팅 모드 (`-chat` / `-c`)
 
-송신 형식: `TARGET<message` — TARGET 채널로 전송.
-`-target` 지정 시 `<message` (대상 생략) 형식으로 보내면 `-target`으로 자동 채워짐.
-수신 메시지는 `SENDER>message` 형식으로 stdout에 출력.
+송신 형식: `TARGET<message` — TARGET 채널로 전달합니다.
+`-target`이 설정된 경우 `<message`만 입력하면 타겟이 자동으로 채워집니다.
+수신 메시지는 `SENDER>message` 형식으로 stdout에 출력됩니다.
 
 ```bash
-# 일대일 채팅: -target 지정 후 <메시지 입력
+# 1:1 채팅: -target 설정 후 <message 입력
 rpipe -name alice -target bob -chat
-# 입력:  <hello       → bob에게 전송
-# 출력: bob>hi        ← bob이 보낸 메시지
+# 입력:  <hello       → bob으로 전송
+# 출력:  bob>hi       ← bob으로부터 수신
 
-# 멀티채널: 메시지마다 대상 직접 지정
+# 멀티채널: 메시지마다 타겟 지정
 rpipe -name alice -chat
-# 입력:  bob<hello    → bob에게 전송
-# 입력:  carol<hi     → carol에게 전송
-# 출력: bob>hey       ← bob이 보낸 메시지
+# 입력:  bob<hello    → bob으로 전송
+# 입력:  carol<hi     → carol로 전송
+# 출력:  bob>hey      ← bob으로부터 수신
 ```
 
 ### 커맨드 모드
 
-자식 프로세스를 래핑합니다. 자식의 stdout은 Redis로 publish되고, Redis 수신 메시지는 자식의 stdin으로 전달됩니다.
+자식 프로세스를 감쌉니다. 자식 프로세스의 stdout이 Redis에 발행되고, Redis로 수신된 메시지가 자식 프로세스의 stdin으로 전달됩니다.
 
 ```bash
 rpipe -name alice -target bob ./my-program
 ```
 
-자식 프로세스에는 다음 환경변수가 전달됩니다:
+자식 프로세스는 두 가지 환경변수를 받습니다:
 - `RPIPE_NAME` — 이 노드의 채널 이름
 - `RPIPE_TARGET` — 대상 채널 이름
 
-## 예시
+## 예제
 
 ### 파일 전송
 
-**수신 측:**
+**수신측:**
 ```bash
 rpipe -name receiver -target sender > received.tar.gz
 ```
 
-**송신 측:**
+**송신측:**
 ```bash
 cat archive.tar.gz | rpipe -name sender -target receiver
 ```
 
-### 일대일 채팅
+### 양방향 채팅
 
-**Node A:**
+**노드 A:**
 ```bash
 rpipe -name alice -target bob -chat
 ```
 
-**Node B:**
+**노드 B:**
 ```bash
 rpipe -name bob -target alice -chat
 ```
 
-Node A에서 `<hello` 입력 → Node B에서 `alice>hello` 수신.
+노드 A에서 `<hello` 입력 → 노드 B에 `alice>hello`로 수신됩니다.
 
 ### 원격 명령 실행
 
