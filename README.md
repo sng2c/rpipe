@@ -45,7 +45,7 @@ go build -o rpipe .
 ## Usage
 
 ```
-Rpipe V1.0.4
+Rpipe V1.0.5
 Usage: rpipe [flags] [COMMAND...]
 Flags:
   -blocksize int
@@ -54,9 +54,9 @@ Flags:
   -chat
     	Chat mode: send as 'TARGET<message' (or '<message' if -target set), receive as 'SENDER>message'.
   -n string
-    	My channel. Required
+    	My channel name (env: RPIPE_NAME)
   -name string
-    	My channel. Required
+    	My channel name (env: RPIPE_NAME)
   -nonsecure
     	Non-Secure rpipe.
   -r string
@@ -64,9 +64,9 @@ Flags:
   -redis string
     	Redis URL (env: RPIPE_REDIS, default: redis://localhost:6379/0) (default "redis://localhost:6379/0")
   -t string
-    	Target channel. No need to specify target channel in sending message.
+    	Target channel (env: RPIPE_TARGET).
   -target string
-    	Target channel. No need to specify target channel in sending message.
+    	Target channel (env: RPIPE_TARGET).
   -v	Verbose
   -verbose
     	Verbose
