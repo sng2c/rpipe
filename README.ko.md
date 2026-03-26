@@ -187,6 +187,15 @@ rpipe -name alice -target bob -redis redis://user:password@myredis.host:6379/1
 | 대칭 암호  | AES-256-GCM                     |
 | 키 TTL     | 1시간 (자동 교체)               |
 
+### 키 교체
+
+대칭키는 1시간 후 만료됩니다. 만료 시:
+
+1. 송신자가 수신자에게 알림(Control=1)을 보내 캐시된 키를 지우게 함
+2. 새 대칭키를 협상해 Redis에 저장
+
+수신자 측에서 AES 복호화 실패 시(예: 키 교체 중 레이스 컨디션), 캐시를 무효화하고 Redis에서 자동으로 재시도합니다.
+
 ### 호환성 주의: v1.1.0은 이전 버전과 호환되지 않습니다
 
 v1.1.0에서 암호화 알고리즘이 변경되었습니다 (PKCS1v15 → OAEP, AES-128-CFB → AES-256-GCM).

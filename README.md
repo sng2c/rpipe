@@ -181,11 +181,20 @@ Use `-nonsecure` to disable encryption (e.g. for debugging or trusted networks).
 
 ### Cipher details (v1.1.0+)
 
-| Layer       | Algorithm            |
-|-------------|----------------------|
+| Layer       | Algorithm                 |
+|-------------|---------------------------|
 | Key exchange| RSA-2048 + OAEP (SHA-256) |
-| Symmetric   | AES-256-GCM          |
-| Key TTL     | 1 hour (auto-rotated) |
+| Symmetric   | AES-256-GCM               |
+| Key TTL     | 1 hour (auto-rotated)     |
+
+### Key rotation
+
+Symmetric keys expire after 1 hour. When a key expires:
+
+1. The sender notifies the receiver (Control=1) to clear its cached key
+2. A new symmetric key is negotiated and stored in Redis
+
+On the receiver side, if AES decryption fails (e.g. due to a race during rotation), the cached key is invalidated and re-fetched from Redis automatically.
 
 ### Breaking change: v1.1.0 is incompatible with older versions
 
