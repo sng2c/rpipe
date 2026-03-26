@@ -73,21 +73,21 @@ rpipe -name bob -target alice > file.tar.gz
 
 ### Chat mode (`-chat` / `-c`)
 
-Send format: `TARGET:message` — delivers to the TARGET channel.
-When `-target` is set, use `:message` (colon prefix only) and the target is filled automatically.
-Received messages are printed to stdout as `SENDER:message`.
+Send format: `TARGET<message` — delivers to the TARGET channel.
+When `-target` is set, use `<message` (target omitted) and the target is filled automatically.
+Received messages are printed to stdout as `SENDER>message`.
 
 ```bash
-# One-to-one chat: set -target and prefix messages with :
+# One-to-one chat: set -target and use <message
 rpipe -name alice -target bob -chat
-# Input:  :hello       → sent to bob
-# Output: bob:hi       ← message from bob
+# Input:  <hello       → sent to bob
+# Output: bob>hi       ← message from bob
 
 # Multi-channel: specify target per message
 rpipe -name alice -chat
-# Input:  bob:hello    → sent to bob
-# Input:  carol:hi     → sent to carol
-# Output: bob:hey      ← message from bob
+# Input:  bob<hello    → sent to bob
+# Input:  carol<hi     → sent to carol
+# Output: bob>hey      ← message from bob
 ```
 
 ### Command mode
@@ -128,7 +128,7 @@ rpipe -name alice -target bob -chat
 rpipe -name bob -target alice -chat
 ```
 
-Type `:hello` on node A — node B receives `alice:hello`.
+Type `<hello` on node A — node B receives `alice>hello`.
 
 ### Remote command execution
 
@@ -140,8 +140,8 @@ rpipe -name bob -target alice -chat bash
 **Client (alice):**
 ```bash
 rpipe -name alice -target bob -chat
-# Type: bob:ls -la
-# Output: alice:total 12\n...
+# Type: bob<ls -la
+# Output: alice>total 12\n...
 ```
 
 ### Custom Redis

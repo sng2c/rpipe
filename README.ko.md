@@ -73,21 +73,21 @@ rpipe -name bob -target alice > file.tar.gz
 
 ### 채팅 모드 (`-chat` / `-c`)
 
-송신 형식: `TARGET:message` — TARGET 채널로 전송.
-`-target` 지정 시 `:message` (콜론만 앞에 붙임) 형식으로 보내면 `-target`으로 자동 채워짐.
-수신 메시지는 `SENDER:message` 형식으로 stdout에 출력.
+송신 형식: `TARGET<message` — TARGET 채널로 전송.
+`-target` 지정 시 `<message` (대상 생략) 형식으로 보내면 `-target`으로 자동 채워짐.
+수신 메시지는 `SENDER>message` 형식으로 stdout에 출력.
 
 ```bash
-# 일대일 채팅: -target 지정 후 :메시지 입력
+# 일대일 채팅: -target 지정 후 <메시지 입력
 rpipe -name alice -target bob -chat
-# 입력:  :hello       → bob에게 전송
-# 출력: bob:hi        ← bob이 보낸 메시지
+# 입력:  <hello       → bob에게 전송
+# 출력: bob>hi        ← bob이 보낸 메시지
 
 # 멀티채널: 메시지마다 대상 직접 지정
 rpipe -name alice -chat
-# 입력:  bob:hello    → bob에게 전송
-# 입력:  carol:hi     → carol에게 전송
-# 출력: bob:hey       ← bob이 보낸 메시지
+# 입력:  bob<hello    → bob에게 전송
+# 입력:  carol<hi     → carol에게 전송
+# 출력: bob>hey       ← bob이 보낸 메시지
 ```
 
 ### 커맨드 모드
@@ -128,7 +128,7 @@ rpipe -name alice -target bob -chat
 rpipe -name bob -target alice -chat
 ```
 
-Node A에서 `:hello` 입력 → Node B에서 `alice:hello` 수신.
+Node A에서 `<hello` 입력 → Node B에서 `alice>hello` 수신.
 
 ### 원격 명령 실행
 
@@ -140,8 +140,8 @@ rpipe -name bob -target alice -chat bash
 **클라이언트 (alice):**
 ```bash
 rpipe -name alice -target bob -chat
-# 입력: bob:ls -la
-# 출력: alice:total 12\n...
+# 입력: bob<ls -la
+# 출력: alice>total 12\n...
 ```
 
 ### 커스텀 Redis

@@ -21,7 +21,7 @@ import (
 
 var ctx = context.Background()
 
-const VERSION = "1.0.1"
+const VERSION = "1.0.2"
 
 type Str string
 
@@ -211,7 +211,7 @@ MainLoop:
 				log.Debugln(string(data))
 				appMsg, err := msgspec.NewApplicationMsg(data)
 				if err != nil {
-					log.Warningln("Failed to parse message: expected TARGET:message format", err)
+					log.Warningln("Failed to parse message: expected TARGET<message format", err)
 					continue MainLoop
 				}
 				// split
