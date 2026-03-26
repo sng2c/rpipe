@@ -45,7 +45,7 @@ go build -o rpipe .
 ## Usage
 
 ```
-Rpipe V1.0.2
+Rpipe V1.0.4
 Usage: rpipe [flags] [COMMAND...]
 Flags:
   -blocksize int
@@ -60,9 +60,9 @@ Flags:
   -nonsecure
     	Non-Secure rpipe.
   -r string
-    	Redis URL (default "redis://localhost:6379/0")
+    	Redis URL (env: RPIPE_REDIS, default: redis://localhost:6379/0) (default "redis://localhost:6379/0")
   -redis string
-    	Redis URL (default "redis://localhost:6379/0")
+    	Redis URL (env: RPIPE_REDIS, default: redis://localhost:6379/0) (default "redis://localhost:6379/0")
   -t string
     	Target channel. No need to specify target channel in sending message.
   -target string
@@ -70,9 +70,10 @@ Flags:
   -v	Verbose
   -verbose
     	Verbose
-Environment variables set for COMMAND:
-  RPIPE_NAME    This node's channel name (-name)
-  RPIPE_TARGET  The target channel name (-target)
+Environment variables:
+  RPIPE_REDIS   Redis URL, overridden by -redis flag
+  RPIPE_NAME    Set for COMMAND: this node's channel name
+  RPIPE_TARGET  Set for COMMAND: the target channel name
 ```
 
 ## Modes

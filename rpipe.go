@@ -21,7 +21,7 @@ import (
 
 var ctx = context.Background()
 
-const VERSION = "1.0.3"
+const VERSION = "1.0.4"
 
 type Str string
 
@@ -38,9 +38,10 @@ func main() {
 		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [flags] [COMMAND...]\n", os.Args[0])
 		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Flags:\n")
 		flag.PrintDefaults()
-		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Environment variables set for COMMAND:\n")
-		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "  RPIPE_NAME    This node's channel name (-name)\n")
-		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "  RPIPE_TARGET  The target channel name (-target)\n")
+		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "Environment variables:\n")
+		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "  RPIPE_REDIS   Redis URL, overridden by -redis flag\n")
+		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "  RPIPE_NAME    Set for COMMAND: this node's channel name\n")
+		_, _ = fmt.Fprintf(flag.CommandLine.Output(), "  RPIPE_TARGET  Set for COMMAND: the target channel name\n")
 	}
 
 	var redisURL string
@@ -53,10 +54,15 @@ func main() {
 	defaultBlockSize := 512 * 1024
 	channelLineBufferMap := make(map[string][]byte)
 
+	defaultRedisURL := os.Getenv("RPIPE_REDIS")
+	if defaultRedisURL == "" {
+		defaultRedisURL = "redis://localhost:6379/0"
+	}
+
 	flag.BoolVar(&verbose, "verbose", false, "Verbose")
 	flag.BoolVar(&verbose, "v", false, "Verbose")
-	flag.StringVar(&redisURL, "redis", "redis://localhost:6379/0", "Redis URL")
-	flag.StringVar(&redisURL, "r", "redis://localhost:6379/0", "Redis URL")
+	flag.StringVar(&redisURL, "redis", defaultRedisURL, "Redis URL (env: RPIPE_REDIS, default: redis://localhost:6379/0)")
+	flag.StringVar(&redisURL, "r", defaultRedisURL, "Redis URL (env: RPIPE_REDIS, default: redis://localhost:6379/0)")
 	flag.StringVar(&myChnName, "name", "", "My channel. Required")
 	flag.StringVar(&myChnName, "n", "", "My channel. Required")
 	flag.StringVar(&targetChnName, "target", targetChnName, "Target channel. No need to specify target channel in sending message.")
