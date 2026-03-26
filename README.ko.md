@@ -179,7 +179,7 @@ rpipe -name alice -target bob -redis redis://user:password@myredis.host:6379/1
 
 신뢰할 수 있는 네트워크나 디버깅 시 `-nonsecure`로 암호화를 비활성화할 수 있습니다.
 
-### 암호화 상세 (v1.0.6+)
+### 암호화 상세 (v1.1.0+)
 
 | 계층       | 알고리즘                        |
 |------------|---------------------------------|
@@ -187,9 +187,9 @@ rpipe -name alice -target bob -redis redis://user:password@myredis.host:6379/1
 | 대칭 암호  | AES-256-GCM                     |
 | 키 TTL     | 1시간 (자동 교체)               |
 
-### 호환성 주의: v1.0.6은 이전 버전과 호환되지 않습니다
+### 호환성 주의: v1.1.0은 이전 버전과 호환되지 않습니다
 
-v1.0.6에서 암호화 알고리즘이 변경되었습니다 (PKCS1v15 → OAEP, AES-128-CFB → AES-256-GCM).
+v1.1.0에서 암호화 알고리즘이 변경되었습니다 (PKCS1v15 → OAEP, AES-128-CFB → AES-256-GCM).
 서로 통신하는 모든 노드는 같은 메이저 버전을 사용해야 합니다.
 **모든 노드를 동시에 업그레이드하세요.**
 

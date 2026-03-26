@@ -179,7 +179,7 @@ By default, rpipe uses end-to-end encryption:
 
 Use `-nonsecure` to disable encryption (e.g. for debugging or trusted networks).
 
-### Cipher details (v1.0.6+)
+### Cipher details (v1.1.0+)
 
 | Layer       | Algorithm            |
 |-------------|----------------------|
@@ -187,9 +187,9 @@ Use `-nonsecure` to disable encryption (e.g. for debugging or trusted networks).
 | Symmetric   | AES-256-GCM          |
 | Key TTL     | 1 hour (auto-rotated) |
 
-### Breaking change: v1.0.6 is incompatible with older versions
+### Breaking change: v1.1.0 is incompatible with older versions
 
-v1.0.6 upgraded the encryption algorithms (PKCS1v15 → OAEP, AES-128-CFB → AES-256-GCM).
+v1.1.0 upgraded the encryption algorithms (PKCS1v15 → OAEP, AES-128-CFB → AES-256-GCM).
 All nodes communicating with each other must run the same major version.
 **Upgrade all nodes simultaneously.**
 
