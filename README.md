@@ -181,10 +181,11 @@ Use `-nonsecure` to disable encryption (e.g. for debugging or trusted networks).
 
 ## Environment variables
 
-| Variable       | Set by | Description              |
-|----------------|--------|--------------------------|
-| `RPIPE_NAME`   | rpipe  | This node's channel name |
-| `RPIPE_TARGET` | rpipe  | The target channel name  |
+| Variable       | Description                                  |
+|----------------|----------------------------------------------|
+| `RPIPE_REDIS`  | Redis URL (corresponds to `-redis` flag)     |
+| `RPIPE_NAME`   | My channel name (corresponds to `-name` flag)|
+| `RPIPE_TARGET` | Target channel (corresponds to `-target` flag)|
 
 ## License
 
